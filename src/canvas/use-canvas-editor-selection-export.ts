@@ -195,23 +195,39 @@ export function createCanvasEditorSelectionExport(deps: SelectionExportDependenc
 
   async function resolveNoteCreationDirectory(): Promise<{ notebook: string, parentPath: string } | null> {
     const settings = getPluginSettings()
-    const notebooks = await lsNotebooks()
-    const notebook = notebooks?.notebooks?.find((n: { closed: boolean }) => !n.closed)
-    if (!notebook) return null
+    const notebooksRes = await lsNotebooks()
+    const activeNotebooks = notebooksRes?.notebooks?.filter((n: { closed: boolean }) => !n.closed) || []
+    if (activeNotebooks.length === 0) return null
+
+    const defaultNotebook = activeNotebooks[0]
 
     if (settings.noteCreationDirectory) {
+      // 规整路径，统一使用正斜杠并去除末尾斜杠
       const normalized = settings.noteCreationDirectory.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/\/$/, '')
-      return { notebook: notebook.id, parentPath: normalized || '/' }
+      const segments = normalized.split('/').filter(Boolean)
+      
+      if (segments.length > 0) {
+        const firstSegment = segments[0]
+        // 尝试匹配未关闭的笔记本名称
+        const matchedNotebook = activeNotebooks.find((n: { name: string }) => n.name === firstSegment)
+        if (matchedNotebook) {
+          // 如果首段匹配到了笔记本，则使用该笔记本，剩余段作为笔记本内部的父路径
+          const remainingPath = '/' + segments.slice(1).join('/')
+          return { notebook: matchedNotebook.id, parentPath: remainingPath }
+        }
+      }
+      // 未匹配到任何笔记本时，默认在活动笔记本下的整个路径中创建
+      return { notebook: defaultNotebook.id, parentPath: normalized || '/' }
     }
 
-    const conf = await getNotebookConf(notebook.id)
+    const conf = await getNotebookConf(defaultNotebook.id)
     const dailyNotePath = conf?.conf?.dailyNoteSavePath
-    if (!dailyNotePath) return { notebook: notebook.id, parentPath: '/' }
+    if (!dailyNotePath) return { notebook: defaultNotebook.id, parentPath: '/' }
 
     const resolved = await renderSprig(dailyNotePath)
     const segments = resolved.replace(/\\/g, '/').replace(/\/+/g, '/').split('/').filter(Boolean)
     segments.pop()
-    return { notebook: notebook.id, parentPath: '/' + segments.join('/') }
+    return { notebook: defaultNotebook.id, parentPath: '/' + segments.join('/') }
   }
 
   async function copyImageTargetToWorkspaceCanvasAssets(
