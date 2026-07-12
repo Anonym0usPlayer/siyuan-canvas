@@ -1332,6 +1332,7 @@ export function useCanvasEditor(
 
   return createCanvasEditorBindings(
     {
+      commitDocument,
       applySelectionColor,
       applyEdgeColor,
       applySelectionLayout,
@@ -1516,6 +1517,7 @@ export function useCanvasEditor(
       updateSelectedEdgeDirection,
       selectedEdgeDirectionMode,
       presentation,
+      settings: computed(() => getReactivePluginSettings()),
       defaultCanvasDirectory: computed(() => getPluginSettings().defaultCanvasDirectory),
       sproutLoading,
       sproutRelations,

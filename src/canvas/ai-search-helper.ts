@@ -186,8 +186,8 @@ export async function requestAiSearch(options: {
   const { collected, relations, targetNode, apiConfig, richness, cardCount } = options
   const { baseUrl, apiKey, model, requestTimeoutSeconds, temperature, maxTokens } = apiConfig
 
-  if (!baseUrl || !apiKey || !model) {
-    throw new Error("Missing API Configuration (baseUrl, apiKey, or model)")
+  if (!baseUrl || !model) {
+    throw new Error("Missing API Configuration (baseUrl or model)")
   }
 
   // Construct system prompt
@@ -243,7 +243,9 @@ ${targetNode.content}
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "Authorization": `Bearer ${apiKey}`,
+  }
+  if (apiKey) {
+    headers["Authorization"] = `Bearer ${apiKey}`
   }
 
   const requestBody = {

@@ -308,6 +308,7 @@ export default class SiyuanCanvasPlugin extends Plugin {
       },
       t: (key, replacements) => this.t(key, replacements),
       isAiControlled: () => !!this.activeAiConfig.value,
+      getActiveAiConfig: () => this.activeAiConfig.value,
     })
   }
 

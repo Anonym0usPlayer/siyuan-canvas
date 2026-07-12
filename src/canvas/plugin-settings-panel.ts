@@ -13,6 +13,7 @@ interface CanvasPluginSettingsPanelOptions {
   saveSettings: (settings: CanvasPluginSettings) => Promise<void>
   t: CanvasI18nTranslator
   isAiControlled?: () => boolean
+  getActiveAiConfig?: () => any
 }
 
 export function openCanvasPluginSettingsPanel(options: CanvasPluginSettingsPanelOptions): Setting {
@@ -27,6 +28,7 @@ export function openCanvasPluginSettingsPanel(options: CanvasPluginSettingsPanel
   } = options
 
   const isControlled = isAiControlled?.() || false
+  const activeAiConfig = options.getActiveAiConfig?.() || null
 
   const draft = getSettings()
   const setting = createSetting({
@@ -294,7 +296,7 @@ export function openCanvasPluginSettingsPanel(options: CanvasPluginSettingsPanel
       input.dataset.settingKey = "aiProvider"
       input.className = "b3-text-field fn__flex-center"
       input.type = "text"
-      input.value = draft.aiProvider || "openai"
+      input.value = isControlled && activeAiConfig ? (activeAiConfig.provider || "openai") : (draft.aiProvider || "openai")
       input.disabled = isControlled
       if (!isControlled) {
         input.addEventListener("change", () => {
@@ -313,7 +315,7 @@ export function openCanvasPluginSettingsPanel(options: CanvasPluginSettingsPanel
       input.dataset.settingKey = "aiBaseUrl"
       input.className = "b3-text-field fn__flex-center"
       input.type = "text"
-      input.value = draft.aiBaseUrl || ""
+      input.value = isControlled && activeAiConfig ? (activeAiConfig.baseUrl || "") : (draft.aiBaseUrl || "")
       input.disabled = isControlled
       if (!isControlled) {
         input.addEventListener("change", () => {
@@ -332,7 +334,7 @@ export function openCanvasPluginSettingsPanel(options: CanvasPluginSettingsPanel
       input.dataset.settingKey = "aiApiKey"
       input.className = "b3-text-field fn__flex-center"
       input.type = "password"
-      input.value = draft.aiApiKey || ""
+      input.value = isControlled && activeAiConfig ? (activeAiConfig.apiKey || "") : (draft.aiApiKey || "")
       input.disabled = isControlled
       if (!isControlled) {
         input.addEventListener("change", () => {
@@ -351,7 +353,7 @@ export function openCanvasPluginSettingsPanel(options: CanvasPluginSettingsPanel
       input.dataset.settingKey = "aiModel"
       input.className = "b3-text-field fn__flex-center"
       input.type = "text"
-      input.value = draft.aiModel || ""
+      input.value = isControlled && activeAiConfig ? (activeAiConfig.model || "") : (draft.aiModel || "")
       input.disabled = isControlled
       if (!isControlled) {
         input.addEventListener("change", () => {
@@ -370,7 +372,7 @@ export function openCanvasPluginSettingsPanel(options: CanvasPluginSettingsPanel
       input.dataset.settingKey = "aiModels"
       input.className = "b3-text-field fn__flex-center"
       input.type = "text"
-      input.value = draft.aiModels || ""
+      input.value = isControlled && activeAiConfig ? (Array.isArray(activeAiConfig.models) ? activeAiConfig.models.join(", ") : (activeAiConfig.model || "")) : (draft.aiModels || "")
       input.disabled = isControlled
       if (!isControlled) {
         input.addEventListener("change", () => {
@@ -391,7 +393,7 @@ export function openCanvasPluginSettingsPanel(options: CanvasPluginSettingsPanel
       input.type = "number"
       input.min = "5"
       input.max = "300"
-      input.value = (draft.aiRequestTimeoutSeconds ?? 30).toString()
+      input.value = isControlled && activeAiConfig ? (activeAiConfig.requestTimeoutSeconds ?? 30).toString() : (draft.aiRequestTimeoutSeconds ?? 30).toString()
       input.disabled = isControlled
       if (!isControlled) {
         input.addEventListener("change", () => {
@@ -415,7 +417,7 @@ export function openCanvasPluginSettingsPanel(options: CanvasPluginSettingsPanel
       input.min = "0"
       input.max = "2"
       input.step = "0.1"
-      input.value = (draft.aiTemperature ?? 0.7).toString()
+      input.value = isControlled && activeAiConfig ? (activeAiConfig.temperature ?? 0.7).toString() : (draft.aiTemperature ?? 0.7).toString()
       input.disabled = isControlled
       if (!isControlled) {
         input.addEventListener("change", () => {
@@ -438,7 +440,7 @@ export function openCanvasPluginSettingsPanel(options: CanvasPluginSettingsPanel
       input.type = "number"
       input.min = "1"
       input.max = "65536"
-      input.value = (draft.aiMaxTokens ?? 4096).toString()
+      input.value = isControlled && activeAiConfig ? (activeAiConfig.maxTokens ?? 4096).toString() : (draft.aiMaxTokens ?? 4096).toString()
       input.disabled = isControlled
       if (!isControlled) {
         input.addEventListener("change", () => {

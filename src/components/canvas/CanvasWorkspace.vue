@@ -2253,6 +2253,7 @@ import type { CanvasFilePickerOption } from "@/canvas/file-picker-dialog"
 import { getVideoEmbedUrl } from "@/canvas/markdown-preview"
 import { collectUpstreamContext, requestAiSearch } from "@/canvas/ai-search-helper"
 import { findNonOverlappingPosition } from "@/canvas/node-overlap"
+import { createCanvasNode, createCanvasEdge } from "@/canvas/document"
 
 const props = defineProps<{
   bootstrap: CanvasTabBootstrap
@@ -2471,11 +2472,11 @@ const isAiSearching = ref(false)
 
 const isAiConfigured = computed(() => {
   const activeConfig = (props.plugin as any).activeAiConfig?.value
-  if (activeConfig && activeConfig.apiKey && activeConfig.baseUrl) {
+  if (activeConfig && activeConfig.baseUrl) {
     return true
   }
   const settings = editor.settings || {}
-  return !!((settings as any).aiApiKey && (settings as any).aiBaseUrl)
+  return !!(settings as any).aiBaseUrl
 })
 
 const isAiSearchButtonVisible = computed(() => {
@@ -2544,7 +2545,7 @@ async function handleAiSearch() {
       }
     }
 
-    if (!apiConfig.baseUrl || !apiConfig.apiKey || !apiConfig.model) {
+    if (!apiConfig.baseUrl || !apiConfig.model) {
       throw new Error(t("aiSearchErrorConfig") || "大模型 API 未配置，请前往设置或启用 API 旋钮插件")
     }
 
@@ -2601,7 +2602,7 @@ async function handleAiSearch() {
 
     for (let i = 0; i < N; i++) {
       const card = generatedCards[i]
-      const childNode = editor.createCanvasNode('text') as any
+      const childNode = createCanvasNode('text') as any
       childNode.text = card.content
       childNode.width = newCardWidth
       childNode.height = newCardHeight
@@ -2623,7 +2624,7 @@ async function handleAiSearch() {
       currentNodes.push(childNode) // 立即加入，用于下一个子节点的避障
 
       // 创建连线从当前选中节点右侧到新节点左侧
-      const edge = editor.createCanvasEdge(targetNode.id, childNode.id) as any
+      const edge = createCanvasEdge(targetNode.id, childNode.id) as any
       edge.fromSide = 'right'
       edge.toSide = 'left'
       newEdges.push(edge)
