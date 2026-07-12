@@ -1,4 +1,6 @@
 {
+  "canvasHelper": "Canvas Helper",
+  "dockEmptySelectionTip": "Please select a node or edge in the canvas to edit",
   "addTopBarIcon": "Canvas",
   "openCanvas": "Open canvas workspace",
   "openCanvasPath": "Open canvas by path",

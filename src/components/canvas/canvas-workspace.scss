@@ -2352,6 +2352,18 @@
   background: var(--canvas-surface);
   color: var(--canvas-text);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--b3-theme-on-surface) 8%, transparent);
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 20%;
+    right: 20%;
+    height: 2px;
+    background-color: var(--canvas-accent);
+    border-radius: 2px;
+  }
 }
 
 .inspector__tab-badge {

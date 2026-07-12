@@ -1,4 +1,6 @@
 {
+  "canvasHelper": "Canvas 助手",
+  "dockEmptySelectionTip": "请在画布中选中节点或边以进行编辑",
   "addTopBarIcon": "无界",
   "openCanvas": "打开 Canvas 工作区",
   "openCanvasPath": "按路径打开 Canvas",

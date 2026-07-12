@@ -121,6 +121,7 @@ class PluginMock {
   public setting: unknown
   public tabs: any[] = []
   public topBars: any[] = []
+  public docks: any[] = []
   private storedData: unknown = null
 
   addCommand = vi.fn((config: any) => {
@@ -137,6 +138,10 @@ class PluginMock {
 
   addTopBar = vi.fn((config: any) => {
     this.topBars.push(config)
+  })
+
+  addDock = vi.fn((config: any) => {
+    this.docks.push(config)
   })
 
   async loadData(_key: string): Promise<unknown> {

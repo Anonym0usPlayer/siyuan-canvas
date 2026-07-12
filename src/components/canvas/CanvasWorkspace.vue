@@ -280,17 +280,17 @@
 
     <div
       class="workspace"
-      :class="{ 'workspace--inspector-collapsed': !editor.inspectorExpanded || !pinned }"
-      :style="(editor.inspectorExpanded && pinned) ? undefined : { gridTemplateColumns: '1fr 0px' }"
+      :class="{ 'workspace--inspector-collapsed': true }"
+      :style="{ gridTemplateColumns: '1fr 0px' }"
     >
       <div
-        v-if="!pinned && !editor.inspectorExpanded"
+        v-if="false"
         class="workspace__inspector-trigger"
         @mouseenter="editor.inspectorExpanded = true"
       />
 
       <button
-        v-if="pinned"
+        v-if="false"
         class="workspace__inspector-handle"
         :class="{ 'workspace__inspector-handle--collapsed': !editor.inspectorExpanded }"
         :style="editor.inspectorExpanded ? undefined : { right: '8px' }"
@@ -1705,7 +1705,7 @@
         </div>
       </section>
 
-      <aside
+      <aside v-if="false"
         class="inspector"
         :class="{
           'inspector--collapsed': !editor.inspectorExpanded,
@@ -2144,6 +2144,8 @@ import type {
 import {
   computed,
   nextTick,
+  onActivated,
+  onDeactivated,
   onBeforeUnmount,
   onMounted,
   ref,
@@ -2205,6 +2207,23 @@ const props = defineProps<{
 
 const t = createCanvasI18n((props.plugin as Plugin & { i18n?: Record<string, string> }).i18n)
 const editor = useCanvasEditor(props.plugin, props.bootstrap, props.setTitle)
+
+const bindEditorToPlugin = () => {
+  if (props.plugin && (props.plugin as any).activeEditor) {
+    (props.plugin as any).activeEditor.value = editor
+  }
+}
+
+const unbindEditorFromPlugin = () => {
+  if (props.plugin && (props.plugin as any).activeEditor && (props.plugin as any).activeEditor.value === editor) {
+    (props.plugin as any).activeEditor.value = null
+  }
+}
+
+onMounted(bindEditorToPlugin)
+onActivated(bindEditorToPlugin)
+onBeforeUnmount(unbindEditorFromPlugin)
+onDeactivated(unbindEditorFromPlugin)
 const workspaceExpandedFolders = computed(() => editor.expandedFolders ?? new Set<string>())
 const fileInputRef = editor.fileInputRef
 const stageRef = editor.stageRef

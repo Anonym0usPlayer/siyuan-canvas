@@ -166,3 +166,33 @@ export function unmountCanvasApp(element: HTMLElement): void {
   appMap.delete(element)
   element.innerHTML = ""
 }
+
+import CanvasDock from "@/components/canvas/CanvasDock.vue"
+
+const dockAppMap = new WeakMap<HTMLElement, VueApp>()
+
+export function mountCanvasDockApp(
+  element: HTMLElement,
+  plugin: Plugin,
+): void {
+  const app = createApp(CanvasDock, {
+    plugin,
+  })
+  app.mount(element)
+  bindThemeSync(element, plugin)
+  dockAppMap.set(element, app)
+}
+
+export function unmountCanvasDockApp(element: HTMLElement): void {
+  themeCleanupMap.get(element)?.()
+  themeCleanupMap.delete(element)
+
+  const app = dockAppMap.get(element)
+  if (!app) {
+    return
+  }
+
+  app.unmount()
+  dockAppMap.delete(element)
+  element.innerHTML = ""
+}

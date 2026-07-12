@@ -7,6 +7,7 @@ import type {
   CanvasRecentFile,
 } from "@/canvas/plugin-data"
 
+import { ref } from "vue"
 import type { CanvasTabBootstrap } from "@/main"
 import {
   fetchSyncPost,
@@ -42,6 +43,8 @@ import { createCanvasI18n } from "@/i18n/canvas"
 import { getCanvasFileName } from "@/canvas/use-canvas-editor-shared"
 import {
   bindPlugin,
+  mountCanvasDockApp,
+  unmountCanvasDockApp,
 } from "@/main"
 import { setCanvasEmbedDebugEnabled, startCanvasEmbedObserver, stopCanvasEmbedObserver } from "@/canvas/canvas-embed-observer"
 import { insertCanvasEmbed } from "@/canvas/canvas-embed-insert"
@@ -61,6 +64,7 @@ export default class SiyuanCanvasPlugin extends Plugin {
   public isMobile = false
   public platform: SyFrontendTypes
   public readonly version = pluginInfo.version
+  public activeEditor = ref<any>(null)
   private canvasData = createDefaultCanvasPluginData()
   private lastActiveProtyle: IProtyle | null = null
 
@@ -88,6 +92,24 @@ export default class SiyuanCanvasPlugin extends Plugin {
     bindPlugin(this)
     this.addIcons(`<symbol id="${CANVAS_TAB_ICON_ID}" viewBox="0 0 48 48">${CANVAS_TAB_ICON_BODY}</symbol>`)
     registerCanvasEditorTab(this, CANVAS_EDITOR_TAB_TYPE)
+
+    const pluginInstance = this
+    this.addDock({
+      config: {
+        position: "RightTop",
+        size: { width: "320px", height: "0" },
+        icon: CANVAS_TAB_ICON_ID,
+        title: this.t("canvasHelper"),
+        show: false,
+      },
+      type: "siyuan-canvas-dock",
+      init(this: any) {
+        mountCanvasDockApp(this.element, pluginInstance)
+      },
+      destroy(this: any) {
+        unmountCanvasDockApp(this.element)
+      },
+    })
 
     this.addTopBar({
       icon: TOPBAR_ICON_SVG,
