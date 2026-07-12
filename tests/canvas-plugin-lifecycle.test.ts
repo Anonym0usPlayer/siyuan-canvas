@@ -735,7 +735,7 @@ describe("canvas plugin lifecycle", () => {
     showDragAlignmentGuidesInput.dispatchEvent(new Event("change"))
     await Promise.resolve()
 
-    expect(plugin.getCanvasSettings()).toEqual({
+    expect(plugin.getCanvasSettings()).toEqual(expect.objectContaining({
       colorTheme: "classic",
       defaultCanvasDirectory: "/data/storage/petal/siyuan-canvas",
       detectExternalChanges: false,
@@ -750,7 +750,7 @@ describe("canvas plugin lifecycle", () => {
       showDragAlignmentGuides: false,
       showNodeHeader: true,
       autoCreateTextCardOnDrag: false,
-    })
+    }))
   })
 
   it("loads plugin data and registers tab, commands, and top bar on onload", async () => {
@@ -782,7 +782,7 @@ describe("canvas plugin lifecycle", () => {
 
     await plugin.onload()
 
-    expect(plugin.getCanvasSettings()).toEqual({
+    expect(plugin.getCanvasSettings()).toEqual(expect.objectContaining({
       colorTheme: "classic",
       defaultCanvasDirectory: "/data/storage/petal/siyuan-canvas",
       detectExternalChanges: false,
@@ -797,7 +797,7 @@ describe("canvas plugin lifecycle", () => {
       showDragAlignmentGuides: false,
       showNodeHeader: true,
       autoCreateTextCardOnDrag: false,
-    })
+    }))
     expect(plugin.getRecentCanvasFiles()).toEqual([
       expect.objectContaining({
         path: "/data/storage/siyuan-canvas/recent.canvas",

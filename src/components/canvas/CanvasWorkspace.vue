@@ -1351,6 +1351,28 @@
             />
           </button>
           <button
+            v-if="isAiSearchButtonVisible"
+            class="selection-toolbar__button"
+            :class="{ 'selection-toolbar__button--loading': isAiSearching }"
+            data-testid="selection-toolbar-ai-search"
+            :aria-label="t('selectionToolbarAiSearch') || 'AI 探索'"
+            :data-tooltip="t('selectionToolbarAiSearch') || 'AI 探索'"
+            type="button"
+            :disabled="isAiSearching"
+            @click.stop="handleAiSearch"
+          >
+            <CanvasIcon
+              v-if="!isAiSearching"
+              class="selection-toolbar__icon"
+              name="ai-search"
+            />
+            <CanvasIcon
+              v-else
+              class="selection-toolbar__icon"
+              name="loading-spinner"
+            />
+          </button>
+          <button
             v-if="editor.canDecomposeSelectedDocument"
             class="selection-toolbar__button"
             data-testid="selection-toolbar-decompose"
@@ -2229,6 +2251,8 @@ import {
 } from "@/canvas/file-preview-fallbacks"
 import type { CanvasFilePickerOption } from "@/canvas/file-picker-dialog"
 import { getVideoEmbedUrl } from "@/canvas/markdown-preview"
+import { collectUpstreamContext, requestAiSearch } from "@/canvas/ai-search-helper"
+import { findNonOverlappingPosition } from "@/canvas/node-overlap"
 
 const props = defineProps<{
   bootstrap: CanvasTabBootstrap
@@ -2442,6 +2466,200 @@ watch(editingNodeId, (newId) => {
     }
   }
 })
+
+const isAiSearching = ref(false)
+
+const isAiConfigured = computed(() => {
+  const activeConfig = (props.plugin as any).activeAiConfig?.value
+  if (activeConfig && activeConfig.apiKey && activeConfig.baseUrl) {
+    return true
+  }
+  const settings = editor.settings || {}
+  return !!((settings as any).aiApiKey && (settings as any).aiBaseUrl)
+})
+
+const isAiSearchButtonVisible = computed(() => {
+  if (!editor.settings?.enableAiSearch) {
+    return false
+  }
+  if (!isAiConfigured.value) {
+    return false
+  }
+  if (editor.state.selectedNodeIds.length !== 1) {
+    return false
+  }
+  const selectedId = editor.state.selectedNodeIds[0]
+  const node = editor.state.document.nodes.find((n) => n.id === selectedId)
+  if (!node) {
+    return false
+  }
+  return node.type === "text" || node.type === "file"
+})
+
+async function handleAiSearch() {
+  if (isAiSearching.value) return
+
+  const selectedId = editor.state.selectedNodeIds[0]
+  if (!selectedId) return
+
+  const targetNode = editor.state.document.nodes.find(n => n.id === selectedId)
+  if (!targetNode || (targetNode.type !== "text" && targetNode.type !== "file")) return
+
+  isAiSearching.value = true
+  const loadingMsgId = showMessage(t("aiSearchLoading") || "正在为您进行 AI 探索，请稍候...", 0)
+
+  try {
+    // 1. 获取 API 配置
+    let apiConfig = {
+      provider: "openai",
+      baseUrl: "",
+      apiKey: "",
+      model: "",
+      requestTimeoutSeconds: 30,
+      temperature: 0.7,
+      maxTokens: 4096,
+    }
+
+    const activeConfig = (props.plugin as any).activeAiConfig?.value
+    if (activeConfig && activeConfig.apiKey && activeConfig.baseUrl) {
+      apiConfig = {
+        provider: activeConfig.provider || "openai",
+        baseUrl: activeConfig.baseUrl,
+        apiKey: activeConfig.apiKey,
+        model: activeConfig.model,
+        requestTimeoutSeconds: activeConfig.requestTimeoutSeconds ?? 30,
+        temperature: activeConfig.temperature ?? 0.7,
+        maxTokens: activeConfig.maxTokens ?? 4096,
+      }
+    } else {
+      const settings = editor.settings
+      apiConfig = {
+        provider: settings.aiProvider || "openai",
+        baseUrl: settings.aiBaseUrl,
+        apiKey: settings.aiApiKey,
+        model: settings.aiModel,
+        requestTimeoutSeconds: settings.aiRequestTimeoutSeconds ?? 30,
+        temperature: settings.aiTemperature ?? 0.7,
+        maxTokens: settings.aiMaxTokens ?? 4096,
+      }
+    }
+
+    if (!apiConfig.baseUrl || !apiConfig.apiKey || !apiConfig.model) {
+      throw new Error(t("aiSearchErrorConfig") || "大模型 API 未配置，请前往设置或启用 API 旋钮插件")
+    }
+
+    // 2. 收集上下文
+    const maxDepth = editor.settings.aiSearchMaxDepth ?? 3
+    const maxCards = editor.settings.aiSearchMaxCards ?? 10
+    const { collected, relations, targetNode: collectedTarget } = await collectUpstreamContext(
+      selectedId,
+      editor.state.document.nodes,
+      editor.state.document.edges,
+      maxDepth,
+      maxCards
+    )
+
+    if (!collectedTarget) {
+      throw new Error("找不到当前选中节点的有效内容")
+    }
+
+    // 3. 发送大模型请求
+    const cardCount = editor.settings.aiSearchCardCount ?? 3
+    const richness = editor.settings.aiSearchContentRichness || "medium"
+
+    const response = await requestAiSearch({
+      collected,
+      relations,
+      targetNode: collectedTarget,
+      apiConfig,
+      richness,
+      cardCount,
+    })
+
+    // 4. 解析结果并进行排布生成
+    const generatedCards = response.cards
+    if (!generatedCards || generatedCards.length === 0) {
+      throw new Error("模型未生成任何有效卡片")
+    }
+
+    const newNodes: CanvasNode[] = []
+    const newEdges: CanvasEdge[] = []
+
+    const gapX = 120 // 水平间距
+    const gapY = 40  // 垂直间距
+    
+    // 新生文本卡片的标准宽高
+    const newCardWidth = 250
+    const newCardHeight = 160
+
+    const N = generatedCards.length
+    // 计算相对垂直居中的初始 Y
+    const startY = targetNode.y + (targetNode.height / 2) - ((N * newCardHeight + (N - 1) * gapY) / 2)
+    const targetX = targetNode.x + targetNode.width + gapX
+
+    const currentNodes = [...editor.state.document.nodes]
+
+    for (let i = 0; i < N; i++) {
+      const card = generatedCards[i]
+      const childNode = editor.createCanvasNode('text') as any
+      childNode.text = card.content
+      childNode.width = newCardWidth
+      childNode.height = newCardHeight
+
+      const initialY = startY + i * (newCardHeight + gapY)
+      const position = findNonOverlappingPosition(
+        targetX,
+        initialY,
+        newCardWidth,
+        newCardHeight,
+        currentNodes,
+        newCardHeight + 20
+      )
+
+      childNode.x = position.x
+      childNode.y = position.y
+
+      newNodes.push(childNode)
+      currentNodes.push(childNode) // 立即加入，用于下一个子节点的避障
+
+      // 创建连线从当前选中节点右侧到新节点左侧
+      const edge = editor.createCanvasEdge(targetNode.id, childNode.id) as any
+      edge.fromSide = 'right'
+      edge.toSide = 'left'
+      newEdges.push(edge)
+    }
+
+    // 批量提交
+    editor.commitDocument({
+      ...editor.state.document,
+      nodes: [...editor.state.document.nodes, ...newNodes],
+      edges: [...editor.state.document.edges, ...newEdges],
+    })
+
+    // 选中第一个新生成的卡片
+    if (newNodes.length > 0) {
+      editor.state.selectNode(newNodes[0].id)
+    }
+
+    // 提示成功
+    const completeText = "AI 探索已完成"
+    showMessage(completeText, 3000, "info")
+  } catch (err: any) {
+    console.error("[AI Search] Exploration failed:", err)
+    const errText = t("aiSearchErrorRequest", { error: err.message || String(err) }) || `AI 探索发生错误: ${err.message || String(err)}`
+    showMessage(errText, 5000, "error")
+  } finally {
+    // 隐藏等待 Toast 
+    if (loadingMsgId) {
+      try {
+        (loadingMsgId as any)?.remove()
+      } catch (e) {
+        // 防止由于版本或者环境不同报错
+      }
+    }
+    isAiSearching.value = false
+  }
+}
 
 const customColorContext = ref<'selection' | 'edge' | null>(null)
 const customColorInputRef = ref<HTMLInputElement | null>(null)

@@ -12,6 +12,7 @@ interface CanvasPluginSettingsPanelOptions {
   pluginName: string
   saveSettings: (settings: CanvasPluginSettings) => Promise<void>
   t: CanvasI18nTranslator
+  isAiControlled?: () => boolean
 }
 
 export function openCanvasPluginSettingsPanel(options: CanvasPluginSettingsPanelOptions): Setting {
@@ -22,7 +23,10 @@ export function openCanvasPluginSettingsPanel(options: CanvasPluginSettingsPanel
     pluginName,
     saveSettings,
     t,
+    isAiControlled,
   } = options
+
+  const isControlled = isAiControlled?.() || false
 
   const draft = getSettings()
   const setting = createSetting({
@@ -282,6 +286,275 @@ export function openCanvasPluginSettingsPanel(options: CanvasPluginSettingsPanel
     },
   })
 
+  setting.addItem({
+    title: t("settingsAiProviderTitle" as any) || "API 提供商",
+    description: t("settingsAiProviderDescription" as any) || "大模型 API 提供商名称，例如 openai",
+    createActionElement: () => {
+      const input = document.createElement("input")
+      input.dataset.settingKey = "aiProvider"
+      input.className = "b3-text-field fn__flex-center"
+      input.type = "text"
+      input.value = draft.aiProvider || "openai"
+      input.disabled = isControlled
+      if (!isControlled) {
+        input.addEventListener("change", () => {
+          draft.aiProvider = input.value.trim()
+          void saveDraft()
+        })
+      }
+      return input
+    },
+  })
+  setting.addItem({
+    title: t("settingsAiBaseUrlTitle" as any) || "API 接口地址",
+    description: t("settingsAiBaseUrlDescription" as any) || "API 的 baseUrl，如 https://api.openai.com/v1",
+    createActionElement: () => {
+      const input = document.createElement("input")
+      input.dataset.settingKey = "aiBaseUrl"
+      input.className = "b3-text-field fn__flex-center"
+      input.type = "text"
+      input.value = draft.aiBaseUrl || ""
+      input.disabled = isControlled
+      if (!isControlled) {
+        input.addEventListener("change", () => {
+          draft.aiBaseUrl = input.value.trim()
+          void saveDraft()
+        })
+      }
+      return input
+    },
+  })
+  setting.addItem({
+    title: t("settingsAiApiKeyTitle" as any) || "API 密钥",
+    description: t("settingsAiApiKeyDescription" as any) || "API 请求密钥，格式为 Bearer token 对应的 key",
+    createActionElement: () => {
+      const input = document.createElement("input")
+      input.dataset.settingKey = "aiApiKey"
+      input.className = "b3-text-field fn__flex-center"
+      input.type = "password"
+      input.value = draft.aiApiKey || ""
+      input.disabled = isControlled
+      if (!isControlled) {
+        input.addEventListener("change", () => {
+          draft.aiApiKey = input.value.trim()
+          void saveDraft()
+        })
+      }
+      return input
+    },
+  })
+  setting.addItem({
+    title: t("settingsAiModelTitle" as any) || "模型名称",
+    description: t("settingsAiModelDescription" as any) || "当前使用的大模型名称，例如 gpt-4o",
+    createActionElement: () => {
+      const input = document.createElement("input")
+      input.dataset.settingKey = "aiModel"
+      input.className = "b3-text-field fn__flex-center"
+      input.type = "text"
+      input.value = draft.aiModel || ""
+      input.disabled = isControlled
+      if (!isControlled) {
+        input.addEventListener("change", () => {
+          draft.aiModel = input.value.trim()
+          void saveDraft()
+        })
+      }
+      return input
+    },
+  })
+  setting.addItem({
+    title: t("settingsAiModelsTitle" as any) || "可选模型列表",
+    description: t("settingsAiModelsDescription" as any) || "逗号分隔的候选模型列表",
+    createActionElement: () => {
+      const input = document.createElement("input")
+      input.dataset.settingKey = "aiModels"
+      input.className = "b3-text-field fn__flex-center"
+      input.type = "text"
+      input.value = draft.aiModels || ""
+      input.disabled = isControlled
+      if (!isControlled) {
+        input.addEventListener("change", () => {
+          draft.aiModels = input.value.trim()
+          void saveDraft()
+        })
+      }
+      return input
+    },
+  })
+  setting.addItem({
+    title: t("settingsAiRequestTimeoutSecondsTitle" as any) || "请求超时 (秒)",
+    description: t("settingsAiRequestTimeoutSecondsDescription" as any) || "API 请求超时时长，默认30秒",
+    createActionElement: () => {
+      const input = document.createElement("input")
+      input.dataset.settingKey = "aiRequestTimeoutSeconds"
+      input.className = "b3-text-field fn__flex-center"
+      input.type = "number"
+      input.min = "5"
+      input.max = "300"
+      input.value = (draft.aiRequestTimeoutSeconds ?? 30).toString()
+      input.disabled = isControlled
+      if (!isControlled) {
+        input.addEventListener("change", () => {
+          const val = Number.parseInt(input.value, 10)
+          draft.aiRequestTimeoutSeconds = Number.isNaN(val) ? 30 : Math.min(300, Math.max(5, val))
+          input.value = draft.aiRequestTimeoutSeconds.toString()
+          void saveDraft()
+        })
+      }
+      return input
+    },
+  })
+  setting.addItem({
+    title: t("settingsAiTemperatureTitle" as any) || "温度 (Temperature)",
+    description: t("settingsAiTemperatureDescription" as any) || "采样温度，值越高越随机，默认0.7",
+    createActionElement: () => {
+      const input = document.createElement("input")
+      input.dataset.settingKey = "aiTemperature"
+      input.className = "b3-text-field fn__flex-center"
+      input.type = "number"
+      input.min = "0"
+      input.max = "2"
+      input.step = "0.1"
+      input.value = (draft.aiTemperature ?? 0.7).toString()
+      input.disabled = isControlled
+      if (!isControlled) {
+        input.addEventListener("change", () => {
+          const val = Number.parseFloat(input.value)
+          draft.aiTemperature = Number.isNaN(val) ? 0.7 : Math.min(2, Math.max(0, val))
+          input.value = draft.aiTemperature.toString()
+          void saveDraft()
+        })
+      }
+      return input
+    },
+  })
+  setting.addItem({
+    title: t("settingsAiMaxTokensTitle" as any) || "最大 Token 数",
+    description: t("settingsAiMaxTokensDescription" as any) || "单次生成最大限制的 Token 数，默认4096",
+    createActionElement: () => {
+      const input = document.createElement("input")
+      input.dataset.settingKey = "aiMaxTokens"
+      input.className = "b3-text-field fn__flex-center"
+      input.type = "number"
+      input.min = "1"
+      input.max = "65536"
+      input.value = (draft.aiMaxTokens ?? 4096).toString()
+      input.disabled = isControlled
+      if (!isControlled) {
+        input.addEventListener("change", () => {
+          const val = Number.parseInt(input.value, 10)
+          draft.aiMaxTokens = Number.isNaN(val) ? 4096 : Math.min(65536, Math.max(1, val))
+          input.value = draft.aiMaxTokens.toString()
+          void saveDraft()
+        })
+      }
+      return input
+    },
+  })
+
+  setting.addItem({
+    title: t("settingsEnableAiSearchTitle" as any) || "启用 AI 探索",
+    description: t("settingsEnableAiSearchDescription" as any) || "是否在选中卡片时提供 AI 探索功能",
+    createActionElement: () => {
+      const input = document.createElement("input")
+      input.dataset.settingKey = "enableAiSearch"
+      input.type = "checkbox"
+      input.checked = draft.enableAiSearch === true
+      input.addEventListener("change", () => {
+        draft.enableAiSearch = input.checked
+        void saveDraft()
+      })
+      return input
+    },
+  })
+  setting.addItem({
+    title: t("settingsAiSearchCardCountTitle" as any) || "候选卡片数量",
+    description: t("settingsAiSearchCardCountDescription" as any) || "AI 探索生成的候选卡片数量，默认3个",
+    createActionElement: () => {
+      const input = document.createElement("input")
+      input.dataset.settingKey = "aiSearchCardCount"
+      input.className = "b3-text-field fn__flex-center"
+      input.type = "number"
+      input.min = "1"
+      input.max = "10"
+      input.value = (draft.aiSearchCardCount ?? 3).toString()
+      input.addEventListener("change", () => {
+        const val = Number.parseInt(input.value, 10)
+        draft.aiSearchCardCount = Number.isNaN(val) ? 3 : Math.min(10, Math.max(1, val))
+        input.value = draft.aiSearchCardCount.toString()
+        void saveDraft()
+      })
+      return input
+    },
+  })
+  setting.addItem({
+    title: t("settingsAiSearchContentRichnessTitle" as any) || "内容丰富度",
+    description: t("settingsAiSearchContentRichnessDescription" as any) || "AI 探索生成卡片的内容丰富度，默认适中",
+    createActionElement: () => {
+      const select = document.createElement("select")
+      select.dataset.settingKey = "aiSearchContentRichness"
+      select.className = "b3-select fn__flex-center"
+      const optSimple = document.createElement("option")
+      optSimple.value = "simple"
+      optSimple.textContent = t("settingsAiSearchContentRichnessSimple" as any) || "简洁"
+      const optMedium = document.createElement("option")
+      optMedium.value = "medium"
+      optMedium.textContent = t("settingsAiSearchContentRichnessMedium" as any) || "适中"
+      const optDetailed = document.createElement("option")
+      optDetailed.value = "detailed"
+      optDetailed.textContent = t("settingsAiSearchContentRichnessDetailed" as any) || "丰富"
+      select.appendChild(optSimple)
+      select.appendChild(optMedium)
+      select.appendChild(optDetailed)
+      select.value = draft.aiSearchContentRichness || "medium"
+      select.addEventListener("change", () => {
+        draft.aiSearchContentRichness = select.value as any
+        void saveDraft()
+      })
+      return select
+    },
+  })
+  setting.addItem({
+    title: t("settingsAiSearchMaxDepthTitle" as any) || "前序追溯最大深度",
+    description: t("settingsAiSearchMaxDepthDescription" as any) || "AI 探索追溯上下文的最大连线深度，默认3层",
+    createActionElement: () => {
+      const input = document.createElement("input")
+      input.dataset.settingKey = "aiSearchMaxDepth"
+      input.className = "b3-text-field fn__flex-center"
+      input.type = "number"
+      input.min = "1"
+      input.max = "10"
+      input.value = (draft.aiSearchMaxDepth ?? 3).toString()
+      input.addEventListener("change", () => {
+        const val = Number.parseInt(input.value, 10)
+        draft.aiSearchMaxDepth = Number.isNaN(val) ? 3 : Math.min(10, Math.max(1, val))
+        input.value = draft.aiSearchMaxDepth.toString()
+        void saveDraft()
+      })
+      return input
+    },
+  })
+  setting.addItem({
+    title: t("settingsAiSearchMaxCardsTitle" as any) || "前序追溯最大卡片数",
+    description: t("settingsAiSearchMaxCardsDescription" as any) || "AI 探索包含的前序卡片的最大数量限制，默认10个",
+    createActionElement: () => {
+      const input = document.createElement("input")
+      input.dataset.settingKey = "aiSearchMaxCards"
+      input.className = "b3-text-field fn__flex-center"
+      input.type = "number"
+      input.min = "1"
+      input.max = "50"
+      input.value = (draft.aiSearchMaxCards ?? 10).toString()
+      input.addEventListener("change", () => {
+        const val = Number.parseInt(input.value, 10)
+        draft.aiSearchMaxCards = Number.isNaN(val) ? 10 : Math.min(50, Math.max(1, val))
+        input.value = draft.aiSearchMaxCards.toString()
+        void saveDraft()
+      })
+      return input
+    },
+  })
+
   setting.open(pluginName)
 
   let retryCount = 0
@@ -289,7 +562,7 @@ export function openCanvasPluginSettingsPanel(options: CanvasPluginSettingsPanel
     const anchorEl = document.querySelector('[data-setting-key="colorTheme"]')
     if (anchorEl) {
       try {
-        categorizeSettings(t)
+        categorizeSettings(t, isControlled)
       }
       catch (err) {
         console.error("Failed to categorize siyuan-canvas settings:", err)
@@ -305,7 +578,7 @@ export function openCanvasPluginSettingsPanel(options: CanvasPluginSettingsPanel
   return setting
 }
 
-function categorizeSettings(t: CanvasI18nTranslator) {
+function categorizeSettings(t: CanvasI18nTranslator, isControlled: boolean) {
   const anchorEl = document.querySelector('[data-setting-key="colorTheme"]') as HTMLElement
   if (!anchorEl) return
 
@@ -357,6 +630,26 @@ function categorizeSettings(t: CanvasI18nTranslator) {
       ],
       open: true,
     },
+    {
+      id: "ai",
+      title: t("settingsGroupAi" as any) || "AI 服务",
+      keys: [
+        "aiProvider",
+        "aiBaseUrl",
+        "aiApiKey",
+        "aiModel",
+        "aiModels",
+        "aiRequestTimeoutSeconds",
+        "aiTemperature",
+        "aiMaxTokens",
+        "enableAiSearch",
+        "aiSearchCardCount",
+        "aiSearchContentRichness",
+        "aiSearchMaxDepth",
+        "aiSearchMaxCards",
+      ],
+      open: true,
+    },
   ]
 
   const itemWrappersMap = new Map<string, HTMLElement>()
@@ -370,6 +663,20 @@ function categorizeSettings(t: CanvasI18nTranslator) {
         }
         if (itemWrapper) {
           itemWrappersMap.set(key, itemWrapper)
+          
+          const apiKeys = [
+            "aiProvider",
+            "aiBaseUrl",
+            "aiApiKey",
+            "aiModel",
+            "aiModels",
+            "aiRequestTimeoutSeconds",
+            "aiTemperature",
+            "aiMaxTokens"
+          ]
+          if (isControlled && apiKeys.includes(key)) {
+            itemWrapper.classList.add("siyuan-canvas-settings-item--disabled")
+          }
         }
       }
     }
@@ -390,7 +697,20 @@ function categorizeSettings(t: CanvasI18nTranslator) {
     { key: "presentationStyle", title: "settingsPresentationStyleTitle", desc: "settingsPresentationStyleDescription" },
     { key: "presentationAutoRatio", title: "settingsPresentationAutoRatioTitle", desc: "settingsPresentationAutoRatioDescription" },
     { key: "presentationMaskOpacity", title: "settingsPresentationMaskOpacityTitle", desc: "settingsPresentationMaskOpacityDescription" },
-    { key: "presentationAutoPlayInterval", title: "settingsPresentationAutoPlayIntervalTitle", desc: "settingsPresentationAutoPlayIntervalDescription" }
+    { key: "presentationAutoPlayInterval", title: "settingsPresentationAutoPlayIntervalTitle", desc: "settingsPresentationAutoPlayIntervalDescription" },
+    { key: "enableAiSearch", title: "settingsEnableAiSearchTitle", desc: "settingsEnableAiSearchDescription" },
+    { key: "aiSearchCardCount", title: "settingsAiSearchCardCountTitle", desc: "settingsAiSearchCardCountDescription" },
+    { key: "aiSearchContentRichness", title: "settingsAiSearchContentRichnessTitle", desc: "settingsAiSearchContentRichnessDescription" },
+    { key: "aiSearchMaxDepth", title: "settingsAiSearchMaxDepthTitle", desc: "settingsAiSearchMaxDepthDescription" },
+    { key: "aiSearchMaxCards", title: "settingsAiSearchMaxCardsTitle", desc: "settingsAiSearchMaxCardsDescription" },
+    { key: "aiProvider", title: "settingsAiProviderTitle", desc: "settingsAiProviderDescription" },
+    { key: "aiBaseUrl", title: "settingsAiBaseUrlTitle", desc: "settingsAiBaseUrlDescription" },
+    { key: "aiApiKey", title: "settingsAiApiKeyTitle", desc: "settingsAiApiKeyDescription" },
+    { key: "aiModel", title: "settingsAiModelTitle", desc: "settingsAiModelDescription" },
+    { key: "aiModels", title: "settingsAiModelsTitle", desc: "settingsAiModelsDescription" },
+    { key: "aiRequestTimeoutSeconds", title: "settingsAiRequestTimeoutSecondsTitle", desc: "settingsAiRequestTimeoutSecondsDescription" },
+    { key: "aiTemperature", title: "settingsAiTemperatureTitle", desc: "settingsAiTemperatureDescription" },
+    { key: "aiMaxTokens", title: "settingsAiMaxTokensTitle", desc: "settingsAiMaxTokensDescription" }
   ]
 
   settingKeysMapping.forEach(({ key, title, desc }) => {
@@ -424,7 +744,7 @@ function categorizeSettings(t: CanvasI18nTranslator) {
         infoIcon.className = "siyuan-canvas-info-icon fn__flex fn__flex-center"
         infoIcon.innerHTML = `<svg viewBox="0 0 24 24" class="siyuan-canvas-info-svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>`
         infoIcon.dataset.tooltip = descText
-
+        
         titleEl.style.display = "inline-flex"
         titleEl.style.alignItems = "center"
         titleEl.appendChild(infoIcon)
@@ -474,7 +794,43 @@ function categorizeSettings(t: CanvasI18nTranslator) {
     const contentDiv = document.createElement("div")
     contentDiv.className = "siyuan-canvas-settings-details-content"
 
+    if (group.id === "ai" && isControlled) {
+      const banner = document.createElement("div")
+      banner.className = "siyuan-canvas-settings-banner"
+      banner.textContent = t("settingsAiControlledHint" as any) || "当前已由 API 旋钮 (siyuan-api-switch) 插件接管配置，本地设置已失效。"
+      contentDiv.appendChild(banner)
+    }
+
     groupWrappers.forEach((wrapper) => {
+      const providerEl = wrapper.querySelector('[data-setting-key="aiProvider"]')
+      if (providerEl) {
+        const separator = document.createElement("div")
+        separator.className = "siyuan-canvas-settings-separator siyuan-canvas-settings-separator--first"
+        
+        const title = document.createElement("div")
+        title.className = "siyuan-canvas-settings-separator-title"
+        title.textContent = t("settingsGroupAiApiSubTitle" as any) || "API 基础设置"
+        
+        separator.appendChild(title)
+        contentDiv.appendChild(separator)
+      }
+
+      const inputEl = wrapper.querySelector('[data-setting-key="enableAiSearch"]')
+      if (inputEl) {
+        const separator = document.createElement("div")
+        separator.className = "siyuan-canvas-settings-separator"
+        
+        const line = document.createElement("hr")
+        line.className = "siyuan-canvas-settings-separator-line"
+        
+        const title = document.createElement("div")
+        title.className = "siyuan-canvas-settings-separator-title"
+        title.textContent = t("settingsGroupAiSearchSubTitle" as any) || "AI 探索功能设置"
+        
+        separator.appendChild(line)
+        separator.appendChild(title)
+        contentDiv.appendChild(separator)
+      }
       contentDiv.appendChild(wrapper)
     })
 
@@ -525,7 +881,6 @@ function injectSettingsPanelStyles() {
       border: 1px solid var(--b3-theme-border, rgba(0,0,0,0.1)) !important;
       border-radius: 8px !important;
       background-color: rgba(120, 120, 128, 0.06) !important;
-      overflow: hidden !important;
       display: block !important;
       transition: all 0.2s ease-in-out !important;
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
@@ -547,10 +902,12 @@ function injectSettingsPanelStyles() {
       color: var(--b3-theme-on-background) !important;
       transition: background-color 0.2s ease !important;
       outline: none !important;
+      border-radius: 8px !important;
     }
     .siyuan-canvas-settings-details[open] .siyuan-canvas-settings-summary {
       border-bottom-color: var(--b3-theme-border) !important;
       background-color: rgba(120, 120, 128, 0.02) !important;
+      border-radius: 8px 8px 0 0 !important;
     }
     .siyuan-canvas-settings-summary:hover {
       background-color: rgba(120, 120, 128, 0.1) !important;
@@ -607,6 +964,39 @@ function injectSettingsPanelStyles() {
       border-bottom: none !important;
     }
 
+    /* AI 接管提示 Banner */
+    .siyuan-canvas-settings-banner {
+      margin: 6px 12px 12px 12px !important;
+      padding: 10px 14px !important;
+      background-color: rgba(246, 190, 0, 0.1) !important;
+      border: 1px dashed rgba(246, 190, 0, 0.4) !important;
+      border-radius: 6px !important;
+      color: var(--b3-theme-warning, #f6be00) !important;
+      font-size: 13px !important;
+      font-weight: 500 !important;
+      line-height: 1.5 !important;
+    }
+
+    /* AI 设置分隔区 */
+    .siyuan-canvas-settings-separator {
+      margin: 18px 12px 10px 12px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 8px !important;
+    }
+    .siyuan-canvas-settings-separator-line {
+      border: none !important;
+      border-top: 1px solid var(--b3-theme-border-mute, rgba(0, 0, 0, 0.08)) !important;
+      margin: 0 !important;
+      width: 100% !important;
+    }
+    .siyuan-canvas-settings-separator-title {
+      font-size: 12px !important;
+      font-weight: 600 !important;
+      color: var(--b3-theme-on-surface-mute, rgba(0,0,0,0.5)) !important;
+      letter-spacing: 0.8px !important;
+    }
+
     /* ⓘ 信息提示图标 */
     .siyuan-canvas-info-icon {
       position: relative !important;
@@ -659,6 +1049,14 @@ function injectSettingsPanelStyles() {
       pointer-events: auto !important;
     }
     
+    /* 当鼠标悬浮在整行设置项（.fn__flex / .b3-label）时，直接展示气泡说明 */
+    .siyuan-canvas-settings-details-content > .fn__flex:hover .siyuan-canvas-info-icon::after,
+    .siyuan-canvas-settings-details-content > .b3-label:hover .siyuan-canvas-info-icon::after {
+      opacity: 1 !important;
+      transform: translateX(-50%) scale(1) !important;
+      pointer-events: auto !important;
+    }
+    
     /* Tooltip 底部指示小三角 */
     .siyuan-canvas-info-icon::before {
       content: "" !important;
@@ -675,6 +1073,10 @@ function injectSettingsPanelStyles() {
       transition: opacity 0.15s ease !important;
     }
     .siyuan-canvas-info-icon:hover::before {
+      opacity: 1 !important;
+    }
+    .siyuan-canvas-settings-details-content > .fn__flex:hover .siyuan-canvas-info-icon::before,
+    .siyuan-canvas-settings-details-content > .b3-label:hover .siyuan-canvas-info-icon::before {
       opacity: 1 !important;
     }
 

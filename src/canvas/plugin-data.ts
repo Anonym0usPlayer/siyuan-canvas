@@ -20,6 +20,19 @@ export interface CanvasPluginSettings {
   presentationAutoRatio: boolean
   presentationMaskOpacity: number
   autoCreateTextCardOnDrag: boolean
+  enableAiSearch: boolean
+  aiSearchCardCount: number
+  aiSearchContentRichness: "simple" | "medium" | "detailed"
+  aiSearchMaxDepth: number
+  aiSearchMaxCards: number
+  aiProvider: string
+  aiBaseUrl: string
+  aiApiKey: string
+  aiModel: string
+  aiModels: string
+  aiRequestTimeoutSeconds: number
+  aiTemperature: number
+  aiMaxTokens: number
 }
 
 export interface CanvasInspectorSectionsState {
@@ -66,6 +79,19 @@ export function createDefaultCanvasPluginSettings(): CanvasPluginSettings {
     presentationAutoRatio: true,
     presentationMaskOpacity: 60,
     autoCreateTextCardOnDrag: false,
+    enableAiSearch: false,
+    aiSearchCardCount: 3,
+    aiSearchContentRichness: "medium",
+    aiSearchMaxDepth: 3,
+    aiSearchMaxCards: 10,
+    aiProvider: "openai",
+    aiBaseUrl: "",
+    aiApiKey: "",
+    aiModel: "",
+    aiModels: "",
+    aiRequestTimeoutSeconds: 30,
+    aiTemperature: 0.7,
+    aiMaxTokens: 4096,
   }
 }
 
@@ -181,6 +207,50 @@ export function normalizeCanvasPluginData(value: unknown): CanvasPluginData {
     autoCreateTextCardOnDrag: typeof candidate.settings?.autoCreateTextCardOnDrag === "boolean"
       ? candidate.settings.autoCreateTextCardOnDrag
       : defaults.settings.autoCreateTextCardOnDrag,
+    enableAiSearch: typeof candidate.settings?.enableAiSearch === "boolean"
+      ? candidate.settings.enableAiSearch
+      : defaults.settings.enableAiSearch,
+    aiSearchCardCount: Number.isInteger(candidate.settings?.aiSearchCardCount)
+      && Number(candidate.settings?.aiSearchCardCount) > 0
+      ? Number(candidate.settings?.aiSearchCardCount)
+      : defaults.settings.aiSearchCardCount,
+    aiSearchContentRichness: candidate.settings?.aiSearchContentRichness === "simple"
+      || candidate.settings?.aiSearchContentRichness === "medium"
+      || candidate.settings?.aiSearchContentRichness === "detailed"
+      ? candidate.settings.aiSearchContentRichness
+      : defaults.settings.aiSearchContentRichness,
+    aiSearchMaxDepth: Number.isInteger(candidate.settings?.aiSearchMaxDepth)
+      && Number(candidate.settings?.aiSearchMaxDepth) > 0
+      ? Number(candidate.settings?.aiSearchMaxDepth)
+      : defaults.settings.aiSearchMaxDepth,
+    aiSearchMaxCards: Number.isInteger(candidate.settings?.aiSearchMaxCards)
+      && Number(candidate.settings?.aiSearchMaxCards) > 0
+      ? Number(candidate.settings?.aiSearchMaxCards)
+      : defaults.settings.aiSearchMaxCards,
+    aiProvider: typeof candidate.settings?.aiProvider === "string"
+      ? candidate.settings.aiProvider.trim()
+      : defaults.settings.aiProvider,
+    aiBaseUrl: typeof candidate.settings?.aiBaseUrl === "string"
+      ? candidate.settings.aiBaseUrl.trim()
+      : defaults.settings.aiBaseUrl,
+    aiApiKey: typeof candidate.settings?.aiApiKey === "string"
+      ? candidate.settings.aiApiKey.trim()
+      : defaults.settings.aiApiKey,
+    aiModel: typeof candidate.settings?.aiModel === "string"
+      ? candidate.settings.aiModel.trim()
+      : defaults.settings.aiModel,
+    aiModels: typeof candidate.settings?.aiModels === "string"
+      ? candidate.settings.aiModels.trim()
+      : defaults.settings.aiModels,
+    aiRequestTimeoutSeconds: typeof candidate.settings?.aiRequestTimeoutSeconds === "number" && candidate.settings.aiRequestTimeoutSeconds >= 1
+      ? candidate.settings.aiRequestTimeoutSeconds
+      : defaults.settings.aiRequestTimeoutSeconds,
+    aiTemperature: typeof candidate.settings?.aiTemperature === "number" && candidate.settings.aiTemperature >= 0 && candidate.settings.aiTemperature <= 2
+      ? candidate.settings.aiTemperature
+      : defaults.settings.aiTemperature,
+    aiMaxTokens: typeof candidate.settings?.aiMaxTokens === "number" && candidate.settings.aiMaxTokens >= 1
+      ? candidate.settings.aiMaxTokens
+      : defaults.settings.aiMaxTokens,
   }
 
   const defaultInspectorSections = defaults.ui.inspectorSections

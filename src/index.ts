@@ -65,8 +65,10 @@ export default class SiyuanCanvasPlugin extends Plugin {
   public platform: SyFrontendTypes
   public readonly version = pluginInfo.version
   public activeEditor = ref<any>(null)
+  public activeAiConfig = ref<any>(null)
   private canvasData = createDefaultCanvasPluginData()
   private lastActiveProtyle: IProtyle | null = null
+  private _onApiSwitchReady: (() => void) | null = null
 
   private readonly rememberActiveProtyle = (event: CustomEvent<{ protyle?: IProtyle }>) => {
     if (event.detail?.protyle) {
@@ -171,6 +173,12 @@ export default class SiyuanCanvasPlugin extends Plugin {
     startCanvasEmbedObserver(this, pluginInfo.name, {
       debugLogEnabled: this.canvasData.settings.enableDebugLog,
     })
+
+    this.registerToApiSwitch()
+    this._onApiSwitchReady = () => {
+      this.registerToApiSwitch()
+    }
+    window.addEventListener("siyuan-api-switch:ready", this._onApiSwitchReady)
   }
 
   onunload() {
@@ -178,6 +186,17 @@ export default class SiyuanCanvasPlugin extends Plugin {
     this.eventBus?.off?.("loaded-protyle-dynamic", this.rememberActiveProtyle)
     this.eventBus?.off?.("switch-protyle", this.rememberActiveProtyle)
     stopCanvasEmbedObserver()
+
+    if (this._onApiSwitchReady) {
+      window.removeEventListener("siyuan-api-switch:ready", this._onApiSwitchReady)
+    }
+    if ((window as any).siyuanApiSwitch?.unregister) {
+      try {
+        ;(window as any).siyuanApiSwitch.unregister("siyuan-canvas")
+      } catch (err) {
+        console.error("[siyuan-canvas] Failed to unregister from api-switch:", err)
+      }
+    }
   }
 
   async uninstall() {
@@ -242,11 +261,37 @@ export default class SiyuanCanvasPlugin extends Plugin {
       },
     })
     await this.persistCanvasData()
+    this.registerToApiSwitch()
   }
 
   public async updateCanvasUiState(ui: Partial<CanvasPluginUiState>): Promise<void> {
     this.canvasData = updateCanvasPluginUiState(this.canvasData, ui)
     await this.persistCanvasData()
+  }
+
+  public registerToApiSwitch(): void {
+    if ((window as any).siyuanApiSwitch) {
+      const settings = this.canvasData.settings
+      const localConfig = {
+        provider: settings.aiProvider || "openai",
+        baseUrl: settings.aiBaseUrl || "",
+        apiKey: settings.aiApiKey || "",
+        model: settings.aiModel || "",
+        models: settings.aiModels ? settings.aiModels.split(",").map((m: string) => m.trim()).filter(Boolean) : [],
+        requestTimeoutSeconds: settings.aiRequestTimeoutSeconds ?? 30,
+        temperature: settings.aiTemperature ?? 0.7,
+        maxTokens: settings.aiMaxTokens ?? 4096,
+      }
+      ;(window as any).siyuanApiSwitch.register(
+        "siyuan-canvas",
+        this.t("canvasHelper") || "Canvas",
+        (config: any) => {
+          this.activeAiConfig.value = config
+          console.log("[siyuan-canvas] AI Config updated by api-switch:", config)
+        },
+        localConfig
+      )
+    }
   }
 
   public openCanvasSettings(): void {
@@ -262,6 +307,7 @@ export default class SiyuanCanvasPlugin extends Plugin {
         await this.updateCanvasSettings(settings)
       },
       t: (key, replacements) => this.t(key, replacements),
+      isAiControlled: () => !!this.activeAiConfig.value,
     })
   }
 
