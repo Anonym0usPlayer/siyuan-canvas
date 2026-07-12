@@ -337,6 +337,7 @@ import type { Plugin } from "siyuan"
 import { showMessage as siyuanShowMessage } from "siyuan"
 import {
   computed,
+  onMounted,
   ref,
   watch,
 } from "vue"
@@ -435,39 +436,50 @@ const standaloneWorkspaceTree = createCanvasEditorWorkspaceTree({
   }
 })
 
-// 当没有活跃画布时，自动刷新 standalone 文件树和最近文件数据
-watch(hasActiveEditor, (newVal) => {
-  if (!newVal) {
+// 自动在编辑器切换或关闭时刷新对应的文件树和最近文件数据
+watch(activeEditor, (newEditor) => {
+  if (newEditor) {
+    newEditor.refreshWorkspaceDocuments?.()
+  } else {
     standaloneWorkspaceTree.refreshWorkspaceDocuments()
     refreshLocalRecentFiles()
   }
 }, { immediate: true })
 
+onMounted(() => {
+  if (activeEditor.value) {
+    activeEditor.value.refreshWorkspaceDocuments?.()
+  } else {
+    standaloneWorkspaceTree.refreshWorkspaceDocuments()
+    refreshLocalRecentFiles()
+  }
+})
+
 // === 2. 状态映射与统一计算 ===
 const workspaceDocuments = computed(() => {
   if (hasActiveEditor.value && activeEditor.value) {
-    return activeEditor.value.workspaceDocuments?.value ?? []
+    return activeEditor.value.workspaceDocuments ?? []
   }
   return standaloneWorkspaceTree.workspaceDocuments.value
 })
 
 const workspaceExpandedFolders = computed(() => {
   if (hasActiveEditor.value && activeEditor.value) {
-    return activeEditor.value.expandedFolders?.value ?? new Set<string>()
+    return activeEditor.value.expandedFolders ?? new Set<string>()
   }
   return standaloneWorkspaceTree.expandedFolders.value ?? new Set<string>()
 })
 
 const workspaceSortField = computed(() => {
   if (hasActiveEditor.value && activeEditor.value) {
-    return activeEditor.value.workspaceSortField?.value ?? 'updated'
+    return activeEditor.value.workspaceSortField ?? 'updated'
   }
   return standaloneWorkspaceTree.workspaceSortField.value
 })
 
 const workspaceSortDirection = computed(() => {
   if (hasActiveEditor.value && activeEditor.value) {
-    return activeEditor.value.workspaceSortDirection?.value ?? 'desc'
+    return activeEditor.value.workspaceSortDirection ?? 'desc'
   }
   return standaloneWorkspaceTree.workspaceSortDirection.value
 })
@@ -478,7 +490,7 @@ const defaultCanvasDirectory = computed(() => {
 
 const allFoldersExpanded = computed(() => {
   if (hasActiveEditor.value && activeEditor.value) {
-    return activeEditor.value.allFoldersExpanded?.value ?? false
+    return activeEditor.value.allFoldersExpanded ?? false
   }
   return standaloneWorkspaceTree.allFoldersExpanded.value
 })
@@ -489,7 +501,7 @@ let dragExpandTimer: any = null
 
 const recentFiles = computed(() => {
   if (hasActiveEditor.value && activeEditor.value) {
-    return activeEditor.value.recentFiles?.value ?? []
+    return activeEditor.value.recentFiles ?? []
   }
   return localRecentFiles.value
 })
@@ -649,7 +661,7 @@ const onFolderDragEnter = (event: DragEvent, folderPath: string) => {
     : standaloneWorkspaceTree
 
   const expandedFoldersSet = hasActiveEditor.value && activeEditor.value
-    ? activeEditor.value.expandedFolders?.value
+    ? activeEditor.value.expandedFolders
     : standaloneWorkspaceTree.expandedFolders.value
 
   if (expandedFoldersSet && !expandedFoldersSet.has(folderPath)) {
