@@ -388,5 +388,6 @@
   "aiSearchLoading": "正在为您进行 AI 探索，请稍候...",
   "aiSearchErrorConfig": "AI 探索失败：大模型 API 未配置，请前往设置或启用 API 旋钮插件",
   "aiSearchErrorRequest": "AI 探索发生错误：{error}",
-  "settingsGroupAiSearchSubTitle": "AI 探索功能设置"
+  "settingsGroupAiSearchSubTitle": "AI 探索功能设置",
+  "settingsGroupAiApiSubTitle": "API 基础设置"
 }

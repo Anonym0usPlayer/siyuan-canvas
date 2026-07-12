@@ -713,6 +713,18 @@ function categorizeSettings(t: CanvasI18nTranslator, isControlled: boolean) {
     { key: "aiMaxTokens", title: "settingsAiMaxTokensTitle", desc: "settingsAiMaxTokensDescription" }
   ]
 
+  let globalTooltip: HTMLElement | null = null
+  const getOrCreateGlobalTooltip = (): HTMLElement => {
+    if (globalTooltip) return globalTooltip
+    globalTooltip = document.querySelector(".siyuan-canvas-global-tooltip") as HTMLElement
+    if (!globalTooltip) {
+      globalTooltip = document.createElement("div")
+      globalTooltip.className = "siyuan-canvas-global-tooltip"
+      document.body.appendChild(globalTooltip)
+    }
+    return globalTooltip
+  }
+
   settingKeysMapping.forEach(({ key, title, desc }) => {
     const itemWrapper = itemWrappersMap.get(key)
     if (!itemWrapper) return
@@ -739,15 +751,46 @@ function categorizeSettings(t: CanvasI18nTranslator, isControlled: boolean) {
     }
 
     if (titleEl && descText) {
-      if (!titleEl.querySelector(".siyuan-canvas-info-icon")) {
-        const infoIcon = document.createElement("span")
+      let infoIcon = titleEl.querySelector(".siyuan-canvas-info-icon") as HTMLElement
+      if (!infoIcon) {
+        infoIcon = document.createElement("span")
         infoIcon.className = "siyuan-canvas-info-icon fn__flex fn__flex-center"
         infoIcon.innerHTML = `<svg viewBox="0 0 24 24" class="siyuan-canvas-info-svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>`
         infoIcon.dataset.tooltip = descText
-        
+
         titleEl.style.display = "inline-flex"
         titleEl.style.alignItems = "center"
         titleEl.appendChild(infoIcon)
+      }
+
+      const currentIcon = infoIcon
+      const showTooltip = () => {
+        const tooltip = getOrCreateGlobalTooltip()
+        tooltip.textContent = descText
+        tooltip.style.display = "block"
+        
+        const tooltipHeight = tooltip.offsetHeight
+        const tooltipWidth = tooltip.offsetWidth
+
+        const rect = currentIcon.getBoundingClientRect()
+        
+        const top = window.scrollY + rect.top - tooltipHeight - 8
+        const left = window.scrollX + rect.left + rect.width / 2 - tooltipWidth / 2
+
+        tooltip.style.top = `${top}px`
+        tooltip.style.left = `${left}px`
+        tooltip.classList.add("siyuan-canvas-global-tooltip--show")
+      }
+
+      const hideTooltip = () => {
+        const tooltip = getOrCreateGlobalTooltip()
+        tooltip.classList.remove("siyuan-canvas-global-tooltip--show")
+      }
+
+      if (!(itemWrapper as any).__tooltipBound) {
+        (itemWrapper as any).__tooltipBound = true
+        itemWrapper.addEventListener("mouseenter", showTooltip)
+        itemWrapper.addEventListener("mouseleave", hideTooltip)
       }
     }
   })
@@ -984,6 +1027,9 @@ function injectSettingsPanelStyles() {
       flex-direction: column !important;
       gap: 8px !important;
     }
+    .siyuan-canvas-settings-separator--first {
+      margin-top: 6px !important;
+    }
     .siyuan-canvas-settings-separator-line {
       border: none !important;
       border-top: 1px solid var(--b3-theme-border-mute, rgba(0, 0, 0, 0.08)) !important;
@@ -997,9 +1043,20 @@ function injectSettingsPanelStyles() {
       letter-spacing: 0.8px !important;
     }
 
+    /* 被接管置灰状态样式 */
+    .siyuan-canvas-settings-item--disabled {
+      opacity: 0.55 !important;
+      pointer-events: none !important;
+      background-color: rgba(120, 120, 128, 0.02) !important;
+      filter: grayscale(1) !important;
+    }
+    .siyuan-canvas-settings-item--disabled input,
+    .siyuan-canvas-settings-item--disabled select {
+      cursor: not-allowed !important;
+    }
+
     /* ⓘ 信息提示图标 */
     .siyuan-canvas-info-icon {
-      position: relative !important;
       cursor: help !important;
       margin-left: 8px !important;
       width: 14px !important;
@@ -1020,14 +1077,9 @@ function injectSettingsPanelStyles() {
       fill: currentColor !important;
     }
     
-    /* 精致悬浮 Tooltips 气泡 */
-    .siyuan-canvas-info-icon::after {
-      content: attr(data-tooltip) !important;
+    /* 挂在 body 下的全局气泡浮层，彻底防 overflow 裁剪 */
+    .siyuan-canvas-global-tooltip {
       position: absolute !important;
-      bottom: 130% !important;
-      left: 50% !important;
-      transform: translateX(-50%) scale(0.85) !important;
-      transform-origin: bottom center !important;
       background-color: var(--b3-theme-background-hover, #333) !important;
       color: var(--b3-theme-on-background, #fff) !important;
       border: 1px solid var(--b3-theme-border) !important;
@@ -1038,46 +1090,17 @@ function injectSettingsPanelStyles() {
       white-space: pre-wrap !important;
       width: 220px !important;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
-      z-index: 10000 !important;
-      opacity: 0 !important;
+      z-index: 100000 !important;
       pointer-events: none !important;
+      opacity: 0 !important;
+      transform: scale(0.85) !important;
+      transform-origin: bottom center !important;
       transition: opacity 0.15s ease, transform 0.15s ease !important;
+      display: none;
     }
-    .siyuan-canvas-info-icon:hover::after {
+    .siyuan-canvas-global-tooltip.siyuan-canvas-global-tooltip--show {
       opacity: 1 !important;
-      transform: translateX(-50%) scale(1) !important;
-      pointer-events: auto !important;
-    }
-    
-    /* 当鼠标悬浮在整行设置项（.fn__flex / .b3-label）时，直接展示气泡说明 */
-    .siyuan-canvas-settings-details-content > .fn__flex:hover .siyuan-canvas-info-icon::after,
-    .siyuan-canvas-settings-details-content > .b3-label:hover .siyuan-canvas-info-icon::after {
-      opacity: 1 !important;
-      transform: translateX(-50%) scale(1) !important;
-      pointer-events: auto !important;
-    }
-    
-    /* Tooltip 底部指示小三角 */
-    .siyuan-canvas-info-icon::before {
-      content: "" !important;
-      position: absolute !important;
-      bottom: 110% !important;
-      left: 50% !important;
-      transform: translateX(-50%) !important;
-      border-width: 5px !important;
-      border-style: solid !important;
-      border-color: var(--b3-theme-border) transparent transparent transparent !important;
-      z-index: 10000 !important;
-      opacity: 0 !important;
-      pointer-events: none !important;
-      transition: opacity 0.15s ease !important;
-    }
-    .siyuan-canvas-info-icon:hover::before {
-      opacity: 1 !important;
-    }
-    .siyuan-canvas-settings-details-content > .fn__flex:hover .siyuan-canvas-info-icon::before,
-    .siyuan-canvas-settings-details-content > .b3-label:hover .siyuan-canvas-info-icon::before {
-      opacity: 1 !important;
+      transform: scale(1) !important;
     }
 
     /* 纯 CSS 打造的高级 iOS / Modern Slider 开关样式 */

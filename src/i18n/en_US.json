@@ -388,5 +388,6 @@
   "aiSearchLoading": "AI exploring for you, please wait...",
   "aiSearchErrorConfig": "AI Explore failed: LLM API not configured. Please check settings or enable API Switcher plugin.",
   "aiSearchErrorRequest": "AI Explore error occurred: {error}",
-  "settingsGroupAiSearchSubTitle": "AI Explore Settings"
+  "settingsGroupAiSearchSubTitle": "AI Explore Settings",
+  "settingsGroupAiApiSubTitle": "API Basic Settings"
 }
