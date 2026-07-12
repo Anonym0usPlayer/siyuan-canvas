@@ -446,28 +446,28 @@ watch(hasActiveEditor, (newVal) => {
 // === 2. 状态映射与统一计算 ===
 const workspaceDocuments = computed(() => {
   if (hasActiveEditor.value && activeEditor.value) {
-    return activeEditor.value.workspaceDocuments
+    return activeEditor.value.workspaceDocuments?.value ?? []
   }
   return standaloneWorkspaceTree.workspaceDocuments.value
 })
 
 const workspaceExpandedFolders = computed(() => {
   if (hasActiveEditor.value && activeEditor.value) {
-    return activeEditor.value.expandedFolders ?? new Set<string>()
+    return activeEditor.value.expandedFolders?.value ?? new Set<string>()
   }
   return standaloneWorkspaceTree.expandedFolders.value ?? new Set<string>()
 })
 
 const workspaceSortField = computed(() => {
   if (hasActiveEditor.value && activeEditor.value) {
-    return activeEditor.value.workspaceSortField
+    return activeEditor.value.workspaceSortField?.value ?? 'updated'
   }
   return standaloneWorkspaceTree.workspaceSortField.value
 })
 
 const workspaceSortDirection = computed(() => {
   if (hasActiveEditor.value && activeEditor.value) {
-    return activeEditor.value.workspaceSortDirection
+    return activeEditor.value.workspaceSortDirection?.value ?? 'desc'
   }
   return standaloneWorkspaceTree.workspaceSortDirection.value
 })
@@ -478,21 +478,18 @@ const defaultCanvasDirectory = computed(() => {
 
 const allFoldersExpanded = computed(() => {
   if (hasActiveEditor.value && activeEditor.value) {
-    return activeEditor.value.allFoldersExpanded
+    return activeEditor.value.allFoldersExpanded?.value ?? false
   }
   return standaloneWorkspaceTree.allFoldersExpanded.value
 })
 
-const dragOverFolderPath = computed(() => {
-  if (hasActiveEditor.value && activeEditor.value) {
-    return activeEditor.value.dragOverFolderPath
-  }
-  return standaloneWorkspaceTree.dragOverFolderPath.value
-})
+const dragSourcePath = ref<string | null>(null)
+const dragOverFolderPath = ref<string | null>(null)
+let dragExpandTimer: any = null
 
 const recentFiles = computed(() => {
   if (hasActiveEditor.value && activeEditor.value) {
-    return activeEditor.value.recentFiles
+    return activeEditor.value.recentFiles?.value ?? []
   }
   return localRecentFiles.value
 })
@@ -631,39 +628,90 @@ const {
 })
 
 // === 5. 拖拽与放置代理事件 ===
-const onRootDrop = (event: DragEvent) => {
-  if (hasActiveEditor.value) activeEditor.value.handleRootDrop(event)
-  else standaloneWorkspaceTree.handleRootDrop(event)
+const onFileDragStart = (event: DragEvent, filePath: string) => {
+  if (!event.dataTransfer) return
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', filePath)
+  dragSourcePath.value = filePath
 }
 
-const onFolderDragOver = (event: DragEvent, path: string) => {
-  if (hasActiveEditor.value) activeEditor.value.handleFolderDragOver(event, path)
-  else standaloneWorkspaceTree.handleFolderDragOver(event, path)
+const onFolderDragOver = (event: DragEvent) => {
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
 }
 
-const onFolderDragEnter = (event: DragEvent, path: string) => {
-  if (hasActiveEditor.value) activeEditor.value.handleFolderDragEnter(event, path)
-  else standaloneWorkspaceTree.handleFolderDragEnter(event, path)
+const onFolderDragEnter = (event: DragEvent, folderPath: string) => {
+  event.preventDefault()
+  dragOverFolderPath.value = folderPath
+  
+  const currentTree = hasActiveEditor.value && activeEditor.value
+    ? activeEditor.value
+    : standaloneWorkspaceTree
+
+  const expandedFoldersSet = hasActiveEditor.value && activeEditor.value
+    ? activeEditor.value.expandedFolders?.value
+    : standaloneWorkspaceTree.expandedFolders.value
+
+  if (expandedFoldersSet && !expandedFoldersSet.has(folderPath)) {
+    if (dragExpandTimer) clearTimeout(dragExpandTimer)
+    dragExpandTimer = setTimeout(() => {
+      currentTree.toggleFolderExpand(folderPath)
+      dragExpandTimer = null
+    }, 600)
+  }
 }
 
-const onFolderDragLeave = (event: DragEvent, path: string) => {
-  if (hasActiveEditor.value) activeEditor.value.handleFolderDragLeave(event, path)
-  else standaloneWorkspaceTree.handleFolderDragLeave(event, path)
+const onFolderDragLeave = (event: DragEvent, folderPath: string) => {
+  const related = event.relatedTarget as HTMLElement | null
+  if (related && (event.currentTarget as HTMLElement).contains(related)) return
+  if (dragOverFolderPath.value === folderPath) {
+    dragOverFolderPath.value = null
+  }
+  if (dragExpandTimer) {
+    clearTimeout(dragExpandTimer)
+    dragExpandTimer = null
+  }
 }
 
-const onFolderDrop = (event: DragEvent, path: string) => {
-  if (hasActiveEditor.value) activeEditor.value.handleFolderDrop(event, path)
-  else standaloneWorkspaceTree.handleFolderDrop(event, path)
+const onFolderDrop = async (event: DragEvent, folderPath: string) => {
+  event.preventDefault()
+  if (dragExpandTimer) {
+    clearTimeout(dragExpandTimer)
+    dragExpandTimer = null
+  }
+  dragOverFolderPath.value = null
+  const sourcePath = event.dataTransfer?.getData('text/plain') || dragSourcePath.value
+  if (!sourcePath) return
+  dragSourcePath.value = null
+
+  const currentTree = hasActiveEditor.value && activeEditor.value
+    ? activeEditor.value
+    : standaloneWorkspaceTree
+
+  await currentTree.moveWorkspaceFile(sourcePath, folderPath)
 }
 
-const onFileDragStart = (event: DragEvent, path: string) => {
-  if (hasActiveEditor.value) activeEditor.value.handleFileDragStart(event, path)
-  else standaloneWorkspaceTree.handleFileDragStart(event, path)
+const onRootDrop = async (event: DragEvent) => {
+  event.preventDefault()
+  const sourcePath = event.dataTransfer?.getData('text/plain') || dragSourcePath.value
+  if (!sourcePath) return
+  dragSourcePath.value = null
+
+  const currentTree = hasActiveEditor.value && activeEditor.value
+    ? activeEditor.value
+    : standaloneWorkspaceTree
+
+  const defaultDir = (props.plugin as any)?.getCanvasSettings?.()?.defaultCanvasDirectory ?? ""
+  await currentTree.moveWorkspaceFile(sourcePath, defaultDir)
 }
 
 const onDragEnd = (event: DragEvent) => {
-  if (hasActiveEditor.value) activeEditor.value.handleDragEnd(event)
-  else standaloneWorkspaceTree.handleDragEnd(event)
+  dragSourcePath.value = null
+  dragOverFolderPath.value = null
+  if (dragExpandTimer) {
+    clearTimeout(dragExpandTimer)
+    dragExpandTimer = null
+  }
 }
 
 // 标签页辅助方法
