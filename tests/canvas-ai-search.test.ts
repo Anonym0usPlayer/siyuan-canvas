@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { collectUpstreamContext } from '@/canvas/ai-search-helper'
+import { collectUpstreamContext, requestAiSearch } from '@/canvas/ai-search-helper'
 import type { CanvasNode, CanvasEdge } from '@/canvas/types'
 
 // Mock Siyuan kernel API requests since we run unit tests in a Node environment without kernel active
@@ -77,3 +77,201 @@ describe('collectUpstreamContext BFS Trace', () => {
     expect(result.collected[0].id).toBe('nodeA')
   })
 })
+
+describe('requestAiSearch JSON parser tolerance', () => {
+  it('correctly parses standard response', async () => {
+    const mockResponse = {
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            cards: [{ content: 'Hello World' }]
+          })
+        }
+      }]
+    }
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockResponse)
+      } as Response)
+    )
+
+    const result = await requestAiSearch({
+      collected: [],
+      relations: [],
+      targetNode: { id: 't1', type: 'text', title: 'Target', content: 'content', depth: 0 },
+      apiConfig: { provider: 'test', baseUrl: 'http://test.ai', apiKey: 'key', model: 'gpt-4', requestTimeoutSeconds: 5, temperature: 0.7, maxTokens: 100 },
+      richness: 'simple',
+      cardCount: 1
+    })
+
+    expect(result.cards).toEqual([{ content: 'Hello World' }])
+    fetchSpy.mockRestore()
+  })
+
+  it('correctly handles non-standard response with top-level content field', async () => {
+    const mockResponse = {
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            content: 'Pandas DataFrame typical scenarios...'
+          })
+        }
+      }]
+    }
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockResponse)
+      } as Response)
+    )
+
+    const result = await requestAiSearch({
+      collected: [],
+      relations: [],
+      targetNode: { id: 't1', type: 'text', title: 'Target', content: 'content', depth: 0 },
+      apiConfig: { provider: 'test', baseUrl: 'http://test.ai', apiKey: 'key', model: 'gpt-4', requestTimeoutSeconds: 5, temperature: 0.7, maxTokens: 100 },
+      richness: 'simple',
+      cardCount: 1
+    })
+
+    expect(result.cards).toEqual([{ content: 'Pandas DataFrame typical scenarios...' }])
+    fetchSpy.mockRestore()
+  })
+
+  it('correctly handles array response', async () => {
+    const mockResponse = {
+      choices: [{
+        message: {
+          content: JSON.stringify([
+            { content: 'Card A' },
+            { content: 'Card B' }
+          ])
+        }
+      }]
+    }
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockResponse)
+      } as Response)
+    )
+
+    const result = await requestAiSearch({
+      collected: [],
+      relations: [],
+      targetNode: { id: 't1', type: 'text', title: 'Target', content: 'content', depth: 0 },
+      apiConfig: { provider: 'test', baseUrl: 'http://test.ai', apiKey: 'key', model: 'gpt-4', requestTimeoutSeconds: 5, temperature: 0.7, maxTokens: 100 },
+      richness: 'simple',
+      cardCount: 2
+    })
+
+    expect(result.cards).toEqual([{ content: 'Card A' }, { content: 'Card B' }])
+    fetchSpy.mockRestore()
+  })
+
+  it('correctly handles response where cards is a string', async () => {
+    const mockResponse = {
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            cards: 'Single string card content'
+          })
+        }
+      }]
+    }
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockResponse)
+      } as Response)
+    )
+
+    const result = await requestAiSearch({
+      collected: [],
+      relations: [],
+      targetNode: { id: 't1', type: 'text', title: 'Target', content: 'content', depth: 0 },
+      apiConfig: { provider: 'test', baseUrl: 'http://test.ai', apiKey: 'key', model: 'gpt-4', requestTimeoutSeconds: 5, temperature: 0.7, maxTokens: 100 },
+      richness: 'simple',
+      cardCount: 1
+    })
+
+    expect(result.cards).toEqual([{ content: 'Single string card content' }])
+    fetchSpy.mockRestore()
+  })
+
+  it('correctly rescues unterminated string (truncated JSON) from LLM', async () => {
+    // 模拟一个大模型输出，并在中途被截断导致字符串未闭合的场景
+    const mockContent = `{\n  "cards": [\n    { "content": "第一张卡片完成的内容" },\n    { "content": "第二张卡片未`
+    
+    const mockResponse = {
+      choices: [{
+        message: {
+          content: mockContent
+        }
+      }]
+    }
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockResponse)
+      } as Response)
+    )
+
+    const result = await requestAiSearch({
+      collected: [],
+      relations: [],
+      targetNode: { id: 't1', type: 'text', title: 'Target', content: 'content', depth: 0 },
+      apiConfig: { provider: 'test', baseUrl: 'http://test.ai', apiKey: 'key', model: 'gpt-4', requestTimeoutSeconds: 5, temperature: 0.7, maxTokens: 100 },
+      richness: 'simple',
+      cardCount: 2
+    })
+
+    // 应该只抢救出已经闭合的第一张卡片
+    expect(result.cards).toEqual([{ content: '第一张卡片完成的内容' }])
+    fetchSpy.mockRestore()
+  })
+
+  it('correctly rescues duplicate top-level content keys in truncated format', async () => {
+    // 模拟大模型输出大量重复 "content" 键，且末尾发生截断的场景
+    const mockContent = `{
+      "content": "Python基础模块内容一"
+    ,
+      "content": "Python标准库内容二"
+    ,
+      "content": "Python第三方库未`
+
+    const mockResponse = {
+      choices: [{
+        message: {
+          content: mockContent
+        }
+      }]
+    }
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockResponse)
+      } as Response)
+    )
+
+    const result = await requestAiSearch({
+      collected: [],
+      relations: [],
+      targetNode: { id: 't1', type: 'text', title: 'Target', content: 'content', depth: 0 },
+      apiConfig: { provider: 'test', baseUrl: 'http://test.ai', apiKey: 'key', model: 'gpt-4', requestTimeoutSeconds: 5, temperature: 0.7, maxTokens: 100 },
+      richness: 'simple',
+      cardCount: 3
+    })
+
+    // 应该把能够闭合的两个 content 内容成功抢救出来
+    expect(result.cards).toEqual([
+      { content: 'Python基础模块内容一' },
+      { content: 'Python标准库内容二' }
+    ])
+    fetchSpy.mockRestore()
+  })
+})
+
