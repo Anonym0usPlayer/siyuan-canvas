@@ -725,82 +725,77 @@ function categorizeSettings(t: CanvasI18nTranslator, isControlled: boolean) {
     return globalTooltip
   }
 
-  settingKeysMapping.forEach(({ key, title, desc }) => {
+  settingKeysMapping.forEach(({ key, desc }) => {
     const itemWrapper = itemWrappersMap.get(key)
     if (!itemWrapper) return
 
-    const titleText = t(title as any)
     const descText = t(desc as any)
+    if (!descText) return
 
-    const allNodes = Array.from(itemWrapper.querySelectorAll("*")) as HTMLElement[]
-    let titleEl: HTMLElement | null = null
-    let descEl: HTMLElement | null = null
-
-    for (const node of allNodes) {
-      const txt = node.textContent?.trim()
-      if (txt === titleText.trim()) {
-        titleEl = node
+    // 1. 隐藏原始描述文字：精确找 class 含 "b3-label__text" 或为第二个子元素的文本节点
+    //    思源的 Setting item 结构为: wrapper > [label-text div] + [action div]
+    //    其中描述文字在 label 区域的第二个子 div 或带特定 class 的元素
+    const labelArea = itemWrapper.querySelector(".b3-label__text, .fn__flex-1")
+    if (labelArea) {
+      // 描述文字通常是 labelArea 内的第二个子元素
+      const children = Array.from(labelArea.children) as HTMLElement[]
+      if (children.length >= 2) {
+        children[1].style.display = "none"
       }
-      else if (txt === descText.trim()) {
-        descEl = node
+    }
+    else {
+      // 降级：遍历直接子元素，尝试按文本内容匹配找到描述行
+      const directChildren = Array.from(itemWrapper.querySelectorAll("div, span, p")) as HTMLElement[]
+      for (const el of directChildren) {
+        if (el.children.length === 0 && el.textContent?.trim() === descText.trim()) {
+          el.style.display = "none"
+          break
+        }
       }
     }
 
-    if (descEl) {
-      descEl.style.display = "none"
-    }
+    // 2. 将 tooltip 文字存入 itemWrapper 的 dataset，供事件处理器读取
+    itemWrapper.dataset.canvasTooltip = descText
 
-    if (titleEl && descText) {
-      let infoIcon = titleEl.querySelector(".siyuan-canvas-info-icon") as HTMLElement
-      if (!infoIcon) {
-        infoIcon = document.createElement("span")
-        infoIcon.className = "siyuan-canvas-info-icon fn__flex fn__flex-center"
-        infoIcon.innerHTML = `<svg viewBox="0 0 24 24" class="siyuan-canvas-info-svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>`
-        infoIcon.dataset.tooltip = descText
+    // 3. 绑定 mouseenter/mouseleave（仅绑定一次）
+    if (!(itemWrapper as any).__tooltipBound) {
+      (itemWrapper as any).__tooltipBound = true
 
-        titleEl.style.display = "inline-flex"
-        titleEl.style.alignItems = "center"
-        titleEl.appendChild(infoIcon)
-      }
+      itemWrapper.addEventListener("mouseenter", () => {
+        const text = itemWrapper.dataset.canvasTooltip
+        if (!text) return
 
-      const currentIcon = infoIcon
-      const showTooltip = () => {
         const tooltip = getOrCreateGlobalTooltip()
-        tooltip.textContent = descText
+        tooltip.textContent = text
 
-        // 先让元素可见但透明，以便读取真实尺寸
-        tooltip.style.opacity = "0"
+        // display:block + visibility:hidden 使浏览器完成 reflow，确保能读取正确尺寸
         tooltip.style.display = "block"
         tooltip.style.visibility = "hidden"
+        tooltip.classList.remove("siyuan-canvas-global-tooltip--show")
 
-        // 读取尺寸（此时已 display:block，可以得到正确尺寸）
-        const tooltipHeight = tooltip.offsetHeight || 40
-        const tooltipWidth = tooltip.offsetWidth || 240
+        // 强制同步 reflow 以读取真实尺寸
+        void tooltip.offsetHeight
 
-        // 用 getBoundingClientRect 返回视口坐标，配合 position:fixed 无需 scrollY
-        const rect = currentIcon.getBoundingClientRect()
-        const top = rect.top - tooltipHeight - 8
-        const rawLeft = rect.left + rect.width / 2 - tooltipWidth / 2
-        const left = Math.max(8, Math.min(rawLeft, window.innerWidth - tooltipWidth - 8))
+        const tooltipH = tooltip.offsetHeight || 36
+        const tooltipW = tooltip.offsetWidth || 240
+
+        // 以 itemWrapper 右上角为锚点，避免遮挡左侧标题文字
+        const rect = itemWrapper.getBoundingClientRect()
+        const top = rect.top - tooltipH - 6
+        const rawLeft = rect.right - tooltipW
+        const left = Math.max(8, Math.min(rawLeft, window.innerWidth - tooltipW - 8))
 
         tooltip.style.top = `${top}px`
         tooltip.style.left = `${left}px`
         tooltip.style.visibility = ""
-        tooltip.style.opacity = ""
         tooltip.classList.add("siyuan-canvas-global-tooltip--show")
-      }
+      })
 
-      const hideTooltip = () => {
+      itemWrapper.addEventListener("mouseleave", () => {
         const tooltip = getOrCreateGlobalTooltip()
         tooltip.classList.remove("siyuan-canvas-global-tooltip--show")
         tooltip.style.display = "none"
-      }
-
-      if (!(itemWrapper as any).__tooltipBound) {
-        (itemWrapper as any).__tooltipBound = true
-        itemWrapper.addEventListener("mouseenter", showTooltip)
-        itemWrapper.addEventListener("mouseleave", hideTooltip)
-      }
+      })
     }
   })
 
