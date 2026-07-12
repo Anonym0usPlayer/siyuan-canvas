@@ -767,24 +767,33 @@ function categorizeSettings(t: CanvasI18nTranslator, isControlled: boolean) {
       const showTooltip = () => {
         const tooltip = getOrCreateGlobalTooltip()
         tooltip.textContent = descText
-        tooltip.style.display = "block"
-        
-        const tooltipHeight = tooltip.offsetHeight
-        const tooltipWidth = tooltip.offsetWidth
 
+        // 先让元素可见但透明，以便读取真实尺寸
+        tooltip.style.opacity = "0"
+        tooltip.style.display = "block"
+        tooltip.style.visibility = "hidden"
+
+        // 读取尺寸（此时已 display:block，可以得到正确尺寸）
+        const tooltipHeight = tooltip.offsetHeight || 40
+        const tooltipWidth = tooltip.offsetWidth || 240
+
+        // 用 getBoundingClientRect 返回视口坐标，配合 position:fixed 无需 scrollY
         const rect = currentIcon.getBoundingClientRect()
-        
-        const top = window.scrollY + rect.top - tooltipHeight - 8
-        const left = window.scrollX + rect.left + rect.width / 2 - tooltipWidth / 2
+        const top = rect.top - tooltipHeight - 8
+        const rawLeft = rect.left + rect.width / 2 - tooltipWidth / 2
+        const left = Math.max(8, Math.min(rawLeft, window.innerWidth - tooltipWidth - 8))
 
         tooltip.style.top = `${top}px`
         tooltip.style.left = `${left}px`
+        tooltip.style.visibility = ""
+        tooltip.style.opacity = ""
         tooltip.classList.add("siyuan-canvas-global-tooltip--show")
       }
 
       const hideTooltip = () => {
         const tooltip = getOrCreateGlobalTooltip()
         tooltip.classList.remove("siyuan-canvas-global-tooltip--show")
+        tooltip.style.display = "none"
       }
 
       if (!(itemWrapper as any).__tooltipBound) {
@@ -1079,28 +1088,29 @@ function injectSettingsPanelStyles() {
     
     /* 挂在 body 下的全局气泡浮层，彻底防 overflow 裁剪 */
     .siyuan-canvas-global-tooltip {
-      position: absolute !important;
-      background-color: var(--b3-theme-background-hover, #333) !important;
-      color: var(--b3-theme-on-background, #fff) !important;
-      border: 1px solid var(--b3-theme-border) !important;
-      padding: 6px 12px !important;
-      border-radius: 6px !important;
+      position: fixed !important;
+      background-color: #1e1e2e !important;
+      color: #e2e8f0 !important;
+      border: 1px solid rgba(255,255,255,0.12) !important;
+      padding: 7px 13px !important;
+      border-radius: 7px !important;
       font-size: 12px !important;
       font-weight: normal !important;
+      line-height: 1.55 !important;
       white-space: pre-wrap !important;
-      width: 220px !important;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
-      z-index: 100000 !important;
+      width: 240px !important;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3) !important;
+      z-index: 999999 !important;
       pointer-events: none !important;
-      opacity: 0 !important;
-      transform: scale(0.85) !important;
-      transform-origin: bottom center !important;
-      transition: opacity 0.15s ease, transform 0.15s ease !important;
       display: none;
+      opacity: 0;
+      transform: scale(0.88) translateY(4px);
+      transform-origin: bottom center;
+      transition: opacity 0.14s ease, transform 0.14s ease;
     }
     .siyuan-canvas-global-tooltip.siyuan-canvas-global-tooltip--show {
       opacity: 1 !important;
-      transform: scale(1) !important;
+      transform: scale(1) translateY(0) !important;
     }
 
     /* 纯 CSS 打造的高级 iOS / Modern Slider 开关样式 */
