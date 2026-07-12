@@ -40,8 +40,11 @@
   --canvas-floating-button-bg: color-mix(in srgb, var(--b3-theme-on-surface) 6%, transparent);
   --canvas-floating-button-bg-hover: color-mix(in srgb, var(--b3-theme-on-surface) 12%, transparent);
   --canvas-floating-text: var(--canvas-text);
-  --canvas-floating-tooltip-bg: color-mix(in srgb, var(--b3-theme-on-surface) 92%, var(--b3-theme-surface));
-  --canvas-floating-tooltip-text: var(--b3-theme-surface);
+  --canvas-floating-tooltip-bg: color-mix(in srgb, var(--b3-theme-on-surface, #1e1e1e) 92%, var(--b3-theme-surface, #ffffff));
+  --canvas-floating-tooltip-text: var(--b3-theme-surface, #ffffff);
+  --selection-toolbar-tooltip-bg: var(--canvas-floating-tooltip-bg);
+  --selection-toolbar-tooltip-border: var(--canvas-floating-border);
+  --selection-toolbar-tooltip-text: var(--canvas-floating-tooltip-text);
 
   /* 选区 / 节点 */
   --canvas-selection-border: var(--canvas-accent-strong);
@@ -92,6 +95,12 @@
   backdrop-filter: blur(16px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
   z-index: 10;
+  max-height: 120px;
+  transition: 
+    max-height 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    padding 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 250ms ease,
+    border-bottom-color 300ms ease;
 }
 
 .toolbar__group {
@@ -1015,20 +1024,17 @@
   transform: translate(-50%, 0);
 }
 
-.canvas-toolbar .toolbar__button[data-tooltip]::after,
-.canvas-toolbar .toolbar__stat[data-tooltip]::after,
-.inspector .canvas-icon-button[data-tooltip]::after {
+.canvas-toolbar [data-tooltip]::after,
+.inspector [data-tooltip]::after {
   top: calc(100% + 8px);
   bottom: auto;
   transform: translate(-50%, -4px);
 }
 
-.canvas-toolbar .toolbar__button[data-tooltip]:hover::after,
-.canvas-toolbar .toolbar__button[data-tooltip]:focus-visible::after,
-.canvas-toolbar .toolbar__stat[data-tooltip]:hover::after,
-.canvas-toolbar .toolbar__stat[data-tooltip]:focus-visible::after,
-.inspector .canvas-icon-button[data-tooltip]:hover::after,
-.inspector .canvas-icon-button[data-tooltip]:focus-visible::after {
+.canvas-toolbar [data-tooltip]:hover::after,
+.canvas-toolbar [data-tooltip]:focus-visible::after,
+.inspector [data-tooltip]:hover::after,
+.inspector [data-tooltip]:focus-visible::after {
   transform: translate(-50%, 0);
 }
 
@@ -2169,6 +2175,7 @@
 
 .inspector {
   overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
   padding: 12px 8px 12px 14px;
   border-left: 1px solid var(--canvas-border);
@@ -3343,4 +3350,106 @@ html[data-theme-mode="dark"] .stage--presentation-mask::before {
   0% { stroke-opacity: 0.6; }
   50% { stroke-opacity: 1; }
   100% { stroke-opacity: 0.6; }
+}
+
+/* 顶部工具栏折叠状态样式 */
+.canvas-shell--toolbar-collapsed {
+  grid-template-rows: 0px minmax(0, 1fr) !important;
+
+  .canvas-toolbar {
+    max-height: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    border-bottom-color: transparent !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+  }
+}
+
+.canvas-toolbar-collapsed-bar {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 100;
+  cursor: pointer;
+  animation: slide-in-left 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.collapsed-bar__button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 48px;
+  border: 1px solid var(--canvas-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--b3-theme-surface) 80%, transparent);
+  color: var(--canvas-text);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--canvas-shadow);
+  transition: 
+    width 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 200ms ease,
+    color 200ms ease;
+  padding: 0;
+  outline: none;
+
+  &:hover {
+    width: 32px;
+    background: color-mix(in srgb, var(--b3-theme-surface) 95%, transparent);
+    color: var(--canvas-accent);
+    
+    .toolbar__icon {
+      transform: translateX(1px);
+    }
+  }
+
+  .toolbar__icon {
+    transition: transform 200ms ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* 折叠条按钮的 tooltip 气泡，专门指向右侧，防截断 */
+.collapsed-bar__button[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  z-index: 999;
+  padding: 5px 8px;
+  border: 1px solid var(--selection-toolbar-tooltip-border);
+  border-radius: 8px;
+  background: var(--selection-toolbar-tooltip-bg);
+  color: var(--selection-toolbar-tooltip-text);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-6px, -50%);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.collapsed-bar__button[data-tooltip]:hover::after {
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }

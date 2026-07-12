@@ -22,6 +22,8 @@
   "toolbarResetViewport": "重置视图",
   "toolbarExport": "导出",
   "toolbarSettings": "设置",
+  "toolbarCollapse": "折叠工具栏",
+  "toolbarExpand": "展开工具栏",
   "toolbarText": "文本",
   "toolbarFile": "笔记",
   "toolbarLink": "链接",

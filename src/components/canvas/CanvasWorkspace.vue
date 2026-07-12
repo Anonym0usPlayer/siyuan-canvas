@@ -2,6 +2,7 @@
   <div
     ref="canvasShellRef"
     class="canvas-shell"
+    :class="{ 'canvas-shell--toolbar-collapsed': toolbarCollapsed }"
     data-testid="canvas-shell"
   >
     <header
@@ -242,8 +243,38 @@
             name="help"
           />
         </button>
+        <button
+          class="toolbar__button toolbar__button--icon"
+          data-testid="top-toolbar-collapse"
+          :aria-label="t('toolbarCollapse')"
+          :data-tooltip="t('toolbarCollapse')"
+          type="button"
+          @click="toolbarCollapsed = true"
+        >
+          <CanvasIcon
+            class="toolbar__icon"
+            name="chevron-left"
+          />
+        </button>
       </div>
     </header>
+
+    <div
+      v-if="toolbarCollapsed"
+      class="canvas-toolbar-collapsed-bar"
+      @click="toolbarCollapsed = false"
+    >
+      <button
+        class="collapsed-bar__button"
+        :data-tooltip="t('toolbarExpand')"
+        type="button"
+      >
+        <CanvasIcon
+          name="chevron-right"
+          :size="14"
+        />
+      </button>
+    </div>
 
     <Teleport to="body">
       <div
@@ -1757,7 +1788,7 @@
               </button>
             </nav>
             <button
-              class="inspector__pin-btn"
+              class="inspector__pin-btn canvas-icon-button"
               :class="{ 'inspector__pin-btn--pinned': pinned }"
               :aria-label="pinned ? t('inspectorUnpin') : t('inspectorPin')"
               :data-tooltip="pinned ? t('inspectorUnpin') : t('inspectorPin')"
@@ -2243,6 +2274,7 @@ const {
   setSelectionToolbarRef,
 } = useCanvasWorkspaceBehavior(editor)
 const edgeLabelInputRef = ref<HTMLInputElement>()
+const toolbarCollapsed = ref(false)
 const fileCardImageOverrides = ref<Record<string, string>>({})
 const fileCardPreviewImageOverrides = ref<Record<string, Record<string, string>>>({})
 const fileCardImageBlobUrls = ref<Record<string, string>>({})

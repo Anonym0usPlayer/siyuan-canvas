@@ -22,6 +22,8 @@
   "toolbarResetViewport": "Reset view",
   "toolbarExport": "Export",
   "toolbarSettings": "Settings",
+  "toolbarCollapse": "Collapse Toolbar",
+  "toolbarExpand": "Expand Toolbar",
   "toolbarText": "Card",
   "toolbarFile": "Note",
   "toolbarLink": "Link",
