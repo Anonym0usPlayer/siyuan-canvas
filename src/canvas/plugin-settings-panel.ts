@@ -766,15 +766,12 @@ function categorizeSettings(t: CanvasI18nTranslator, isControlled: boolean) {
 
         const rect = itemWrapper.getBoundingClientRect()
 
-        // 垂直方向：与设置行垂直居中对齐
-        const top = Math.max(8, rect.top + (rect.height - tooltipH) / 2)
+        // 垂直方向：显示在设置行正下方 6px 处
+        const top = rect.bottom + 6
 
-        // 水平方向：优先显示在设置行右侧；右侧空间不足则显示在左侧
-        const rightLeft = rect.right + 12
-        const leftLeft = rect.left - tooltipW - 12
-        const left = (rightLeft + tooltipW <= window.innerWidth - 8)
-          ? rightLeft
-          : Math.max(8, leftLeft)
+        // 水平方向：与设置行左侧对齐，防止超出视口右边缘
+        const rawLeft = rect.left
+        const left = Math.max(8, Math.min(rawLeft, window.innerWidth - tooltipW - 8))
 
         tooltip.style.top = `${top}px`
         tooltip.style.left = `${left}px`
