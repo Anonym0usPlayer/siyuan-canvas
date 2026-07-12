@@ -732,26 +732,11 @@ function categorizeSettings(t: CanvasI18nTranslator, isControlled: boolean) {
     const descText = t(desc as any)
     if (!descText) return
 
-    // 1. 隐藏原始描述文字：精确找 class 含 "b3-label__text" 或为第二个子元素的文本节点
-    //    思源的 Setting item 结构为: wrapper > [label-text div] + [action div]
-    //    其中描述文字在 label 区域的第二个子 div 或带特定 class 的元素
-    const labelArea = itemWrapper.querySelector(".b3-label__text, .fn__flex-1")
-    if (labelArea) {
-      // 描述文字通常是 labelArea 内的第二个子元素
-      const children = Array.from(labelArea.children) as HTMLElement[]
-      if (children.length >= 2) {
-        children[1].style.display = "none"
-      }
-    }
-    else {
-      // 降级：遍历直接子元素，尝试按文本内容匹配找到描述行
-      const directChildren = Array.from(itemWrapper.querySelectorAll("div, span, p")) as HTMLElement[]
-      for (const el of directChildren) {
-        if (el.children.length === 0 && el.textContent?.trim() === descText.trim()) {
-          el.style.display = "none"
-          break
-        }
-      }
+    // 1. 隐藏描述文字：DOM 结构为 wrapper > .fn__flex-1 > .b3-label__text
+    //    直接精准定位 .b3-label__text 并隐藏
+    const descEl = itemWrapper.querySelector(".b3-label__text") as HTMLElement | null
+    if (descEl) {
+      descEl.style.display = "none"
     }
 
     // 2. 将 tooltip 文字存入 itemWrapper 的 dataset，供事件处理器读取
@@ -779,11 +764,17 @@ function categorizeSettings(t: CanvasI18nTranslator, isControlled: boolean) {
         const tooltipH = tooltip.offsetHeight || 36
         const tooltipW = tooltip.offsetWidth || 240
 
-        // 以 itemWrapper 右上角为锚点，避免遮挡左侧标题文字
         const rect = itemWrapper.getBoundingClientRect()
-        const top = rect.top - tooltipH - 6
-        const rawLeft = rect.right - tooltipW
-        const left = Math.max(8, Math.min(rawLeft, window.innerWidth - tooltipW - 8))
+
+        // 垂直方向：与设置行垂直居中对齐
+        const top = Math.max(8, rect.top + (rect.height - tooltipH) / 2)
+
+        // 水平方向：优先显示在设置行右侧；右侧空间不足则显示在左侧
+        const rightLeft = rect.right + 12
+        const leftLeft = rect.left - tooltipW - 12
+        const left = (rightLeft + tooltipW <= window.innerWidth - 8)
+          ? rightLeft
+          : Math.max(8, leftLeft)
 
         tooltip.style.top = `${top}px`
         tooltip.style.left = `${left}px`
