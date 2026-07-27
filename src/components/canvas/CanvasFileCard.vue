@@ -54,6 +54,7 @@
     </div>
     <div
       v-if="['block', 'document'].includes(preview.kind) && documentPreviewHtml"
+      ref="documentPreviewRef"
       class="file-card__document-preview markdown-preview protyle-wysiwyg"
       v-html="documentPreviewHtml"
       @error.capture="emit('preview-image-error', node, $event)"
@@ -68,10 +69,12 @@
 </template>
 
 <script setup lang="ts">
+import { nextTick, onMounted, onUpdated, ref, watch } from 'vue'
 import type { CanvasFileTargetPreview } from '@/canvas/file-target-preview'
+import { triggerNativeProtyleRender } from '@/canvas/protyle-native-render'
 import type { CanvasFileNode } from '@/canvas/types'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   canvasThumbnailViewBox?: string
   documentPreviewHtml: string
   imageSrc?: string
@@ -89,6 +92,26 @@ const emit = defineEmits<{
   'image-error': [node: CanvasFileNode]
   'preview-image-error': [node: CanvasFileNode, event: Event]
 }>()
+
+const documentPreviewRef = ref<HTMLElement | null>(null)
+
+function scheduleNativeRender() {
+  void nextTick(() => {
+    triggerNativeProtyleRender(documentPreviewRef.value)
+  })
+}
+
+onMounted(() => {
+  scheduleNativeRender()
+})
+
+onUpdated(() => {
+  scheduleNativeRender()
+})
+
+watch(() => props.documentPreviewHtml, () => {
+  scheduleNativeRender()
+})
 </script>
 
 <style scoped lang="scss">

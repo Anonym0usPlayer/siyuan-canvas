@@ -583,13 +583,14 @@
                 />
                 <div
                   v-else
+                  v-native-render
                   class="canvas-node__content markdown-preview"
                   data-canvas-field="text"
                   v-html="renderCanvasTextNodeContent(node)"
                 />
               </template>
               <template v-else-if="node.type === 'file'">
-                <div data-canvas-field="note">
+                <div v-native-render data-canvas-field="note">
                   <CanvasFileCard
                     :canvas-thumbnail-view-box="getCanvasThumbnailViewBox(editor.getFileNodePreview(node).thumbnail)"
                     :document-preview-html="getFileCardDocumentPreviewHtml(node)"
@@ -2251,9 +2252,19 @@ import {
 } from "@/canvas/file-preview-fallbacks"
 import type { CanvasFilePickerOption } from "@/canvas/file-picker-dialog"
 import { getVideoEmbedUrl } from "@/canvas/markdown-preview"
+import { triggerNativeProtyleRender } from "@/canvas/protyle-native-render"
 import { collectUpstreamContext, requestAiSearch } from "@/canvas/ai-search-helper"
 import { findNonOverlappingPosition } from "@/canvas/node-overlap"
 import { createCanvasNode, createCanvasEdge } from "@/canvas/document"
+
+const vNativeRender = {
+  mounted(el: HTMLElement) {
+    triggerNativeProtyleRender(el)
+  },
+  updated(el: HTMLElement) {
+    triggerNativeProtyleRender(el)
+  },
+}
 
 const props = defineProps<{
   bootstrap: CanvasTabBootstrap

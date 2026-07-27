@@ -364,7 +364,6 @@ function renderInlineMarkdown(value: string): string {
     )
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/__([^_]+)__/g, "<strong>$1</strong>")
-
   rendered = restorePlaceholders(rendered, "HTML", htmlPlaceholders)
   rendered = restorePlaceholders(rendered, "IMAGE", imagePlaceholders)
   rendered = restorePlaceholders(rendered, "VIDEO", videoPlaceholders)
@@ -434,13 +433,21 @@ export function renderMarkdownPreview(markdown: string): string {
     }
 
     if (trimmed.startsWith("```")) {
+      const language = trimmed.slice(3).trim().toLowerCase()
       index += 1
       const codeLines: string[] = []
       while (index < lines.length && !lines[index]!.trim().startsWith("```")) {
         codeLines.push(lines[index]!)
         index += 1
       }
-      blocks.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`)
+      const rawCode = codeLines.join("\n")
+      if (language === "mermaid") {
+        blocks.push(
+          `<div data-type="NodeCodeBlock" class="render-node" data-subtype="mermaid" data-content="${escapeHtmlAttribute(rawCode)}"><div spin="1"></div></div>`,
+        )
+      } else {
+        blocks.push(`<pre><code>${escapeHtml(rawCode)}</code></pre>`)
+      }
       index += 1
       continue
     }

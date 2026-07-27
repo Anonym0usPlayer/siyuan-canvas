@@ -168,5 +168,18 @@ Paragraph after.`)
     expect(html3).toContain('<div class="video-card video-card--youtube">')
     expect(html3).toContain("<p>Paragraph after.</p>")
   })
-})
 
+  it("renders mermaid code block as native SiYuan NodeCodeBlock DOM element", () => {
+    const markdown = `\`\`\`mermaid
+graph TD
+    A[Start] --> B{Decision}
+\`\`\``
+    const html = renderMarkdownPreview(markdown)
+
+    expect(html).toContain('data-type="NodeCodeBlock"')
+    expect(html).toContain('class="render-node"')
+    expect(html).toContain('data-subtype="mermaid"')
+    expect(html).toContain('data-content="graph TD\n    A[Start] --&gt; B{Decision}"')
+    expect(html).toContain('<div spin="1"></div>')
+  })
+})
