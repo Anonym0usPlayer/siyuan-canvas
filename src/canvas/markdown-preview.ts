@@ -441,9 +441,11 @@ export function renderMarkdownPreview(markdown: string): string {
         index += 1
       }
       const rawCode = codeLines.join("\n")
-      if (language === "mermaid") {
+      const renderSubtypes = ["mermaid", "echarts", "chart", "mindmap", "flowchart", "graphviz", "math"]
+      if (renderSubtypes.includes(language)) {
+        const subtype = language === "chart" ? "echarts" : language
         blocks.push(
-          `<div data-type="NodeCodeBlock" class="render-node" data-subtype="mermaid" data-content="${escapeHtmlAttribute(rawCode)}"><div spin="1"></div></div>`,
+          `<div data-type="NodeCodeBlock" class="render-node" data-subtype="${subtype}" data-content="${escapeHtmlAttribute(rawCode)}"><div spin="1"></div></div>`,
         )
       } else {
         blocks.push(`<pre><code>${escapeHtml(rawCode)}</code></pre>`)

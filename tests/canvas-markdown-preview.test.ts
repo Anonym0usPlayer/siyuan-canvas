@@ -182,4 +182,32 @@ graph TD
     expect(html).toContain('data-content="graph TD\n    A[Start] --&gt; B{Decision}"')
     expect(html).toContain('<div spin="1"></div>')
   })
+
+  it("renders echarts code block as native SiYuan NodeCodeBlock DOM element", () => {
+    const markdown = `\`\`\`echarts
+{
+  "title": { "text": "Test Chart" }
+}
+\`\`\``
+    const html = renderMarkdownPreview(markdown)
+
+    expect(html).toContain('data-type="NodeCodeBlock"')
+    expect(html).toContain('class="render-node"')
+    expect(html).toContain('data-subtype="echarts"')
+    expect(html).toContain('data-content="{\n  &quot;title&quot;: { &quot;text&quot;: &quot;Test Chart&quot; }\n}"')
+    expect(html).toContain('<div spin="1"></div><div style="width:100%;height:320px;" contenteditable="false"></div>')
+  })
+
+  it("renders chart code block alias as echarts subtype NodeCodeBlock", () => {
+    const markdown = `\`\`\`chart
+{
+  "xAxis": {}
+}
+\`\`\``
+    const html = renderMarkdownPreview(markdown)
+
+    expect(html).toContain('data-subtype="echarts"')
+    expect(html).toContain('data-content="{\n  &quot;xAxis&quot;: {}\n}"')
+    expect(html).toContain('<div style="width:100%;height:320px;" contenteditable="false"></div>')
+  })
 })

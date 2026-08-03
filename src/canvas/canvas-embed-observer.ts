@@ -204,8 +204,19 @@ function openCanvasFromPath(event: Event, canvasPath: string, plugin: Plugin, pl
 
 async function openCanvasFromClickedImage(event: Event, plugin: Plugin, pluginName: string) {
   const elements = getEventElements(event)
-  const blockId = findBlockIdFromElements(elements)
   const canvasPath = findCanvasEmbedPathFromElements(elements)
+  const isEmbedCandidate = elements.some(
+    (el) =>
+      el.classList?.contains(CANVAS_EMBED_CLASS) ||
+      el.hasAttribute?.("data-canvas-path") ||
+      el.textContent?.includes("canvas-embed"),
+  )
+
+  if (!canvasPath && !isEmbedCandidate) {
+    return
+  }
+
+  const blockId = findBlockIdFromElements(elements)
   if (blockId || canvasPath) {
     debugCanvasEmbed("document canvas embed click candidate", {
       blockId,
