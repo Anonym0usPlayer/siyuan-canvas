@@ -1834,7 +1834,7 @@
               :aria-label="t('inspectorNewCanvas')"
               :data-tooltip="t('inspectorNewCanvas')"
               type="button"
-              @click="editor.newCanvas"
+              @click="() => editor.createWorkspaceCanvas()"
             >
               <CanvasIcon
                 name="new-canvas"

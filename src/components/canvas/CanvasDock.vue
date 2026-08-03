@@ -50,7 +50,7 @@
               :aria-label="t('inspectorNewCanvas')"
               :data-tooltip="t('inspectorNewCanvas')"
               type="button"
-              @click="handleCreateCanvas"
+              @click="() => handleCreateCanvas()"
             >
               <CanvasIcon
                 name="new-canvas"
@@ -433,6 +433,7 @@ const standaloneWorkspaceTree = createCanvasEditorWorkspaceTree({
     renameFolderTitle: t("contextMenuRename") || "重命名文件夹",
     renameTitle: t("contextMenuRename") || "重命名",
     unableToSaveMessage: t("unableToSave") || "无法保存",
+    untitledCanvas: t("untitledCanvas") || "未命名画布.canvas",
   }
 })
 
@@ -527,11 +528,12 @@ const handleDeleteDocument = (path: string) => {
   }
 }
 
-const handleCreateCanvas = async () => {
+const handleCreateCanvas = async (path?: unknown) => {
+  const targetPath = typeof path === 'string' ? path : undefined
   if (hasActiveEditor.value && activeEditor.value) {
-    await activeEditor.value.newCanvas()
+    await activeEditor.value.createWorkspaceCanvas?.(targetPath)
   } else {
-    props.plugin.openCanvasTab()
+    await standaloneWorkspaceTree.createWorkspaceCanvas(targetPath)
   }
 }
 
@@ -591,24 +593,25 @@ const currentTreeProvider = computed(() => {
   if (hasActiveEditor.value && activeEditor.value) {
     return {
       ...activeEditor.value,
-      newCanvas: () => activeEditor.value.newCanvas()
+      createWorkspaceCanvas: (path?: string) => activeEditor.value.createWorkspaceCanvas?.(path) ?? activeEditor.value.newCanvas(),
     }
   }
   return {
     ...standaloneWorkspaceTree,
-    newCanvas: () => props.plugin.openCanvasTab()
+    createWorkspaceCanvas: (path?: string) => standaloneWorkspaceTree.createWorkspaceCanvas(path),
   }
 })
 
 const contextMenuEditorProxy = {
   copyWorkspaceDocument: (path: string) => currentTreeProvider.value.copyWorkspaceDocument(path),
   createWorkspaceFolder: (path?: string) => currentTreeProvider.value.createWorkspaceFolder(path),
+  createWorkspaceCanvas: (path?: string) => currentTreeProvider.value.createWorkspaceCanvas(path),
   deleteWorkspaceDocument: (path: string) => currentTreeProvider.value.deleteWorkspaceDocument(path),
   deleteWorkspaceFolder: (path: string) => currentTreeProvider.value.deleteWorkspaceFolder(path),
   openInExplorer: (path: string) => currentTreeProvider.value.openInExplorer(path),
   renameWorkspaceDocument: (path: string) => currentTreeProvider.value.renameWorkspaceDocument(path),
   renameWorkspaceFolder: (path: string) => currentTreeProvider.value.renameWorkspaceFolder(path),
-  newCanvas: () => currentTreeProvider.value.newCanvas(),
+  newCanvas: (path?: string) => currentTreeProvider.value.createWorkspaceCanvas(path),
 }
 
 const {

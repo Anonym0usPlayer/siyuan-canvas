@@ -197,6 +197,7 @@ export function useCanvasEditor(
       unableToRenameFileMessage: t("messageUnableRenameFile"),
       unableToRenameFolderMessage: t("workspaceUnableRenameFolder"),
       unableToSaveMessage: t("messageUnableSaveCanvas"),
+      untitledCanvas: t("untitledCanvas"),
     },
   })
 
@@ -1358,6 +1359,7 @@ export function useCanvasEditor(
       displayNodes,
       deactivateCanvasSurface,
       createWorkspaceFolder: workspaceTree.createWorkspaceFolder,
+      createWorkspaceCanvas: workspaceTree.createWorkspaceCanvas,
       deleteWorkspaceDocument: workspaceTree.deleteWorkspaceDocument,
       deleteWorkspaceFolder: workspaceTree.deleteWorkspaceFolder,
       openInExplorer: workspaceTree.openInExplorer,

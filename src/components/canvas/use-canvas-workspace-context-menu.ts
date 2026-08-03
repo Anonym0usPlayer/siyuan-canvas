@@ -9,13 +9,14 @@ export interface CanvasWorkspaceContextMenuOptions {
     CanvasEditorWorkspaceTree,
     | "copyWorkspaceDocument"
     | "createWorkspaceFolder"
+    | "createWorkspaceCanvas"
     | "deleteWorkspaceDocument"
     | "deleteWorkspaceFolder"
     | "openInExplorer"
     | "renameWorkspaceDocument"
     | "renameWorkspaceFolder"
   > & {
-    newCanvas: () => void | Promise<void>
+    newCanvas?: () => void | Promise<void>
   }
   showCopyPathSuccess: () => void
 }
@@ -72,7 +73,14 @@ export function useCanvasWorkspaceContextMenu(options: CanvasWorkspaceContextMen
 
   function contextMenuNewDocument() {
     closeContextMenu()
-    options.editor.newCanvas()
+    if (options.editor.createWorkspaceCanvas) {
+      const targetDir = contextMenuType.value === 'folder'
+        ? contextMenuPath.value
+        : (contextMenuPath.value.includes('/') ? contextMenuPath.value.substring(0, contextMenuPath.value.lastIndexOf('/')) : undefined)
+      options.editor.createWorkspaceCanvas(targetDir)
+    } else if (options.editor.newCanvas) {
+      options.editor.newCanvas()
+    }
   }
 
   function contextMenuDelete() {

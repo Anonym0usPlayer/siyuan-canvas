@@ -1,3 +1,4 @@
+import { createEmptyCanvasDocument } from "@/canvas/document"
 import type { CanvasPluginBridge } from "@/canvas/use-canvas-editor-shared"
 import type { CanvasPluginSettings } from "@/canvas/plugin-data"
 
@@ -93,6 +94,7 @@ export interface WorkspaceTreeLabels {
   unableToRenameFileMessage: string
   unableToRenameFolderMessage: string
   unableToSaveMessage: string
+  untitledCanvas?: string
 }
 
 const DEFAULT_WORKSPACE_TREE_LABELS: WorkspaceTreeLabels = {
@@ -120,6 +122,7 @@ const DEFAULT_WORKSPACE_TREE_LABELS: WorkspaceTreeLabels = {
   unableToRenameFileMessage: "Unable to rename file",
   unableToRenameFolderMessage: "Unable to rename folder",
   unableToSaveMessage: "Unable to save",
+  untitledCanvas: "Untitled.canvas",
 }
 
 export function createCanvasEditorWorkspaceTree(deps: WorkspaceTreeDependencies) {
@@ -153,8 +156,8 @@ export function createCanvasEditorWorkspaceTree(deps: WorkspaceTreeDependencies)
     }
   }
 
-  async function createWorkspaceFolder() {
-    const directory = deps.getSettings().defaultCanvasDirectory
+  async function createWorkspaceFolder(targetDir?: string) {
+    const directory = targetDir || deps.getSettings().defaultCanvasDirectory
     const folderName = await promptText({
       cancelLabel: labels.dialogCancel,
       confirmLabel: labels.dialogConfirm,
@@ -172,10 +175,66 @@ export function createCanvasEditorWorkspaceTree(deps: WorkspaceTreeDependencies)
     }
   }
 
+  async function createWorkspaceCanvas(targetDir?: unknown): Promise<string | null> {
+    const defaultDir = deps.getSettings().defaultCanvasDirectory || "/data/storage/petal/siyuan-canvas"
+    let directory = defaultDir
+    if (typeof targetDir === "string" && targetDir.trim()) {
+      const trimmed = targetDir.trim()
+      if (trimmed.endsWith(".canvas") || trimmed.includes(".")) {
+        directory = trimmed.includes("/") ? trimmed.substring(0, trimmed.lastIndexOf("/")) : defaultDir
+      } else {
+        directory = trimmed
+      }
+    }
+    if (!directory) {
+      directory = defaultDir
+    }
+    const rawUntitled = labels.untitledCanvas || "Untitled.canvas"
+    const baseName = rawUntitled.replace(/\.canvas$/i, "")
+
+    const existingNames = new Set<string>()
+    try {
+      const items = await deps.readDir(directory)
+      items.forEach((item) => existingNames.add(item.name.toLowerCase()))
+    } catch {
+      // Ignore read error
+    }
+
+    let fileName = `${baseName}.canvas`
+    if (existingNames.has(fileName.toLowerCase())) {
+      let index = 2
+      while (existingNames.has(`${baseName}-${index}.canvas`.toLowerCase())) {
+        index++
+      }
+      fileName = `${baseName}-${index}.canvas`
+    }
+
+    const filePath = `${directory}/${fileName}`.replace(/\/+/g, "/")
+    try {
+      const emptyDoc = createEmptyCanvasDocument()
+      const content = JSON.stringify(emptyDoc, null, 2)
+      const blob = new Blob([content], { type: "application/json" })
+      await deps.putFile(filePath, false, blob)
+      await refreshWorkspaceDocuments()
+
+      if (deps.onFilePathUpdate) {
+        deps.onFilePathUpdate(filePath)
+      }
+      if ((deps.plugin as any)?.openCanvasTab) {
+        await (deps.plugin as any).openCanvasTab({ path: filePath })
+      }
+
+      deps.refreshRecentFiles?.()
+      return filePath
+    } catch {
+      deps.showMessage(labels.unableToSaveMessage, 4000, "error")
+      return null
+    }
+  }
+
   function collectFolderPaths(nodes: WorkspaceTreeNode[]): string[] {
     return collectWorkspaceFolderPaths(nodes)
   }
-
   function setWorkspaceSortField(field: WorkspaceSortField) {
     workspaceSortField.value = field
     refreshWorkspaceDocuments()
@@ -488,6 +547,7 @@ export function createCanvasEditorWorkspaceTree(deps: WorkspaceTreeDependencies)
     // actions
     refreshWorkspaceDocuments,
     createWorkspaceFolder,
+    createWorkspaceCanvas,
     deleteWorkspaceDocument,
     deleteWorkspaceFolder,
     openInExplorer,

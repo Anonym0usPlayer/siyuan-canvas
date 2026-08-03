@@ -456,7 +456,7 @@ describe("workspace tree", () => {
     })
 
     it("calls onFilePathUpdate with target path", async () => {
-      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      vi.spyOn(globalThis, "fetch").mockResolvedValue({
         ok: true,
         text: async () => "{}",
       } as Response)
@@ -486,11 +486,6 @@ describe("workspace tree", () => {
     it("sanitizes filename: removes special characters", () => {
       const result = "test:file*<>|?.canvas".replace(/[\\/:*?"'<>|]/g, "_")
       expect(result).toBe("test_file_____.canvas")
-    })
-
-    it("handles renaming via dialog", async () => {
-      // renameWorkspaceDocument uses openTextInputDialog which requires DOM.
-      // Covered by integration tests in canvas-use-editor-actions.
     })
   })
 
@@ -532,7 +527,7 @@ describe("workspace tree", () => {
       })
       const tree = createTree()
       const result = await tree.readDirectoryTree("/root")
-      expect(result).toHaveLength(1) // only the folder "assets" (empty)
+      expect(result).toHaveLength(1)
       expect(result[0]!.type).toBe("folder")
     })
 
@@ -541,6 +536,60 @@ describe("workspace tree", () => {
       const tree = createTree()
       const result = await tree.readDirectoryTree("/root")
       expect(result).toEqual([])
+    })
+  })
+
+  describe("createWorkspaceCanvas", () => {
+    it("creates a new canvas file with auto-incremented name and triggers updates", async () => {
+      readDirMock.mockResolvedValue([
+        { name: "Untitled.canvas", isDir: false },
+      ])
+      putFileMock.mockResolvedValue({})
+      const openCanvasTabMock = vi.fn()
+      const tree = createCanvasEditorWorkspaceTree({
+        readDir: readDirMock as MockReadDir,
+        putFile: putFileMock,
+        removeFile: removeFileMock,
+        showMessage: showMessageMock,
+        getSettings: getSettingsMock,
+        plugin: {
+          removeRecentCanvasFile: removeRecentCanvasFileMock,
+          updateCanvasUiState: vi.fn(),
+          openCanvasTab: openCanvasTabMock,
+        },
+        onFilePathUpdate: onFilePathUpdateMock,
+        refreshRecentFiles: refreshRecentFilesMock,
+      })
+
+      const createdPath = await tree.createWorkspaceCanvas()
+
+      expect(createdPath).toBe("/data/storage/canvas/Untitled-2.canvas")
+      expect(putFileMock).toHaveBeenCalledWith("/data/storage/canvas/Untitled-2.canvas", false, expect.any(Blob))
+      expect(onFilePathUpdateMock).toHaveBeenCalledWith("/data/storage/canvas/Untitled-2.canvas")
+      expect(openCanvasTabMock).toHaveBeenCalledWith({ path: "/data/storage/canvas/Untitled-2.canvas" })
+      expect(refreshRecentFilesMock).toHaveBeenCalled()
+    })
+
+    it("defaults to root canvas directory when targetDir is omitted or empty", async () => {
+      readDirMock.mockResolvedValue([])
+      putFileMock.mockResolvedValue({})
+      const tree = createTree()
+
+      const createdPath = await tree.createWorkspaceCanvas()
+
+      expect(createdPath).toBe("/data/storage/canvas/Untitled.canvas")
+      expect(putFileMock).toHaveBeenCalledWith("/data/storage/canvas/Untitled.canvas", false, expect.any(Blob))
+    })
+
+    it("creates canvas under parent directory when targetDir is a file path", async () => {
+      readDirMock.mockResolvedValue([])
+      putFileMock.mockResolvedValue({})
+      const tree = createTree()
+
+      const createdPath = await tree.createWorkspaceCanvas("/data/storage/canvas/subfolder/existing.canvas")
+
+      expect(createdPath).toBe("/data/storage/canvas/subfolder/Untitled.canvas")
+      expect(putFileMock).toHaveBeenCalledWith("/data/storage/canvas/subfolder/Untitled.canvas", false, expect.any(Blob))
     })
   })
 })
