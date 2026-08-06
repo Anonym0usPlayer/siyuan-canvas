@@ -12,6 +12,8 @@ interface CanvasEditorKeyboardHandlerOptions {
   getEditingEdgeLabelId: () => string
   getSelectionToolbarPopover: () => 'closed' | 'color' | 'layout'
   hasFloatLayer?: () => boolean
+  hasSelectedNodes?: () => boolean
+  nudgeSelectedNodes?: (dx: number, dy: number) => void
   openFilePickerDialog?: () => void
   redo?: () => void
   save: () => void | Promise<void>
@@ -50,6 +52,8 @@ export function createCanvasEditorKeyboardHandler(options: CanvasEditorKeyboardH
     getEditingEdgeLabelId,
     getSelectionToolbarPopover,
     hasFloatLayer,
+    hasSelectedNodes,
+    nudgeSelectedNodes,
     openFilePickerDialog,
     redo,
     save,
@@ -74,6 +78,19 @@ export function createCanvasEditorKeyboardHandler(options: CanvasEditorKeyboardH
 
     const key = event.key.toLowerCase()
     const isAccelerator = event.ctrlKey || event.metaKey
+
+    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key) && !isAccelerator && !event.altKey && nudgeSelectedNodes && hasSelectedNodes?.()) {
+      event.preventDefault()
+      const step = event.shiftKey ? 10 : 1
+      let dx = 0
+      let dy = 0
+      if (key === 'arrowup') dy = -step
+      if (key === 'arrowdown') dy = step
+      if (key === 'arrowleft') dx = -step
+      if (key === 'arrowright') dx = step
+      nudgeSelectedNodes(dx, dy)
+      return
+    }
 
     if (!isAccelerator && !event.shiftKey && !event.altKey && event.key === 'Tab') {
       if (createMindMapChildNode) {

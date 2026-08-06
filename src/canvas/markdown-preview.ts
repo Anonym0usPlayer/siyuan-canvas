@@ -444,8 +444,9 @@ export function renderMarkdownPreview(markdown: string): string {
       const renderSubtypes = ["mermaid", "echarts", "chart", "mindmap", "flowchart", "graphviz", "math"]
       if (renderSubtypes.includes(language)) {
         const subtype = language === "chart" ? "echarts" : language
+        const extraHtml = subtype === "echarts" ? '<div style="width:100%;height:320px;" contenteditable="false"></div>' : ""
         blocks.push(
-          `<div data-type="NodeCodeBlock" class="render-node" data-subtype="${subtype}" data-content="${escapeHtmlAttribute(rawCode)}"><div spin="1"></div></div>`,
+          `<div data-type="NodeCodeBlock" class="render-node" data-subtype="${subtype}" data-content="${escapeHtmlAttribute(rawCode)}"><div spin="1"></div>${extraHtml}</div>`,
         )
       } else {
         blocks.push(`<pre><code>${escapeHtml(rawCode)}</code></pre>`)
@@ -483,11 +484,26 @@ export function renderMarkdownPreview(markdown: string): string {
       const items: string[] = []
       const isOrdered = /^\d+\.\s+/.test(trimmed)
       const pattern = isOrdered ? /^\d+\.\s+/ : /^[-*+]\s+/
+      let isTaskList = false
+
       while (index < lines.length && pattern.test(lines[index]!.trim())) {
-        items.push(`<li>${renderInlineMarkdown(lines[index]!.trim().replace(pattern, ""))}</li>`)
+        const rawContent = lines[index]!.trim().replace(pattern, "")
+        const taskMatch = rawContent.match(/^\[([ xX])\]\s+(.*)$/)
+        if (taskMatch) {
+          isTaskList = true
+          const isChecked = taskMatch[1].toLowerCase() === "x"
+          const taskContent = taskMatch[2]!
+          const checkboxHtml = `<input type="checkbox" disabled class="task-list-item-checkbox"${isChecked ? " checked" : ""}> `
+          items.push(`<li class="task-list-item">${checkboxHtml}${renderInlineMarkdown(taskContent)}</li>`)
+        } else {
+          items.push(`<li>${renderInlineMarkdown(rawContent)}</li>`)
+        }
         index += 1
       }
-      blocks.push(`<${isOrdered ? "ol" : "ul"}>${items.join("")}</${isOrdered ? "ol" : "ul"}>`)
+
+      const tag = isOrdered ? "ol" : "ul"
+      const listClass = isTaskList ? ' class="task-list"' : ""
+      blocks.push(`<${tag}${listClass}>${items.join("")}</${tag}>`)
       continue
     }
 

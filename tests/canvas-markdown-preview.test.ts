@@ -25,6 +25,17 @@ Paragraph with **bold**, \`code\`, and [link](https://example.com).
     expect(html).toContain("<blockquote><p>quoted</p></blockquote>")
   })
 
+  it("renders markdown task lists with disabled checkboxes", () => {
+    const html = renderMarkdownPreview(`- [ ] Unfinished task
+- [x] Finished task
+- [X] Another finished task`)
+
+    expect(html).toContain('<ul class="task-list">')
+    expect(html).toContain('<li class="task-list-item"><input type="checkbox" disabled class="task-list-item-checkbox"> Unfinished task</li>')
+    expect(html).toContain('<li class="task-list-item"><input type="checkbox" disabled class="task-list-item-checkbox" checked> Finished task</li>')
+    expect(html).toContain('<li class="task-list-item"><input type="checkbox" disabled class="task-list-item-checkbox" checked> Another finished task</li>')
+  })
+
   it("escapes raw html before rendering markdown", () => {
     const html = renderMarkdownPreview("<script>alert(1)</script> and **safe**")
 

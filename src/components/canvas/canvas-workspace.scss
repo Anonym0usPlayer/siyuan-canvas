@@ -1181,7 +1181,7 @@
   flex-direction: column;
   border: 1px solid var(--canvas-border);
   border-radius: 10px;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: var(--canvas-shadow);
   background: var(--canvas-card-bg);
   color: var(--canvas-text);
@@ -1328,6 +1328,8 @@
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
+  border-top-left-radius: 9px;
+  border-top-right-radius: 9px;
 }
 
 .canvas-node__header:active {
@@ -1374,6 +1376,37 @@
   flex: 1;
   padding: 12px 14px 16px;
   overflow: auto;
+  border-bottom-left-radius: 9px;
+  border-bottom-right-radius: 9px;
+}
+
+.canvas-node--no-header .canvas-node__body {
+  border-top-left-radius: 9px;
+  border-top-right-radius: 9px;
+}
+
+:is(.markdown-preview, .canvas-node__body) {
+  ul.task-list,
+  ol.task-list {
+    list-style-type: none;
+    padding-left: 0.2em;
+  }
+
+  li.task-list-item {
+    list-style-type: none;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+
+    input[type="checkbox"].task-list-item-checkbox {
+      margin: 0;
+      cursor: default;
+      pointer-events: none;
+      vertical-align: middle;
+      position: relative;
+      top: 1px;
+    }
+  }
 }
 
 /* 文本/链接节点的 body 是用户内容区，可选择文本/不触发拖动 */

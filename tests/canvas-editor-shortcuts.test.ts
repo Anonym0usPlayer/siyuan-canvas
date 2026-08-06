@@ -61,6 +61,25 @@ function createBaseHandlerOptions() {
 }
 
 describe('canvas editor keyboard handler', () => {
+  it('nudges selected nodes with arrow keys', () => {
+    const nudgeSelectedNodes = vi.fn()
+    const handler = createCanvasEditorKeyboardHandler({
+      ...createBaseHandlerOptions(),
+      hasSelectedNodes: () => true,
+      nudgeSelectedNodes,
+    })
+
+    const eventUp = createKeyboardEvent('ArrowUp')
+    handler.handleKeydown(eventUp)
+    expect(eventUp.preventDefault).toHaveBeenCalled()
+    expect(nudgeSelectedNodes).toHaveBeenLastCalledWith(0, -1)
+
+    const eventShiftRight = createKeyboardEvent('ArrowRight', { shiftKey: true })
+    handler.handleKeydown(eventShiftRight)
+    expect(eventShiftRight.preventDefault).toHaveBeenCalled()
+    expect(nudgeSelectedNodes).toHaveBeenLastCalledWith(10, 0)
+  })
+
   it('ignores shortcuts while the user is editing form fields', () => {
     const deleteSelection = vi.fn()
     const handler = createCanvasEditorKeyboardHandler({

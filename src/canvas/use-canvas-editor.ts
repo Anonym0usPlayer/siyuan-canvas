@@ -52,6 +52,7 @@ import { clampViewportScale, scaleViewportAtPoint } from "@/canvas/viewport"
 import {
   getCanvasSelectionBounds,
   setCanvasEdgeEndpoint,
+  setCanvasNodeGeometry,
   upsertCanvasEdge,
   collapseCanvasGroup,
   expandCanvasGroup,
@@ -1154,6 +1155,25 @@ export function useCanvasEditor(
     showNodeHeader: computed(() => getReactivePluginSettings().showNodeHeader),
   })
 
+  function nudgeSelectedNodes(dx: number, dy: number) {
+    if (!state.selectedNodeIds.length) {
+      return
+    }
+
+    const nextDocument = state.document.nodes.reduce((doc, node) => {
+      if (!state.selectedNodeIds.includes(node.id)) {
+        return doc
+      }
+
+      return setCanvasNodeGeometry(doc, node.id, {
+        x: node.x + dx,
+        y: node.y + dy,
+      })
+    }, state.document)
+
+    commitDocument(nextDocument, { coalesceKey: "nudge-nodes" })
+  }
+
   const { handleKeydown } = createCanvasEditorKeyboardHandler({
     canDelete: () => canDelete.value,
     cancelEdgeLabelEditing,
@@ -1168,6 +1188,8 @@ export function useCanvasEditor(
     getEditingEdgeLabelId: () => editingEdgeLabelId.value,
     getSelectionToolbarPopover: () => selectionToolbarPopover.value,
     hasFloatLayer: () => floatLayerActive.value,
+    hasSelectedNodes: () => state.selectedNodeIds.length > 0,
+    nudgeSelectedNodes,
     openFilePickerDialog,
     redo,
     save,
