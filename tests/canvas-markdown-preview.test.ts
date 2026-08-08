@@ -255,6 +255,35 @@ graph TD
     expect(html).toContain("<li>SubItem 1.2</li>")
     expect(html).toContain("<li>Item 2</li>")
   })
+
+  it("renders ordered lists and preserves custom start numbers", () => {
+    const markdown = `1. 第一步：打开思源笔记
+2. 第二步：选择您喜欢的主题样式
+
+中间段落说明
+
+3. 调整字体大小
+4. 调整行间距与外边距`
+    const html = renderMarkdownPreview(markdown)
+
+    expect(html).toContain("<ol>")
+    expect(html).toContain("<li>第一步：打开思源笔记</li>")
+    expect(html).toContain("<li>第二步：选择您喜欢的主题样式</li>")
+    expect(html).toContain("<p>中间段落说明</p>")
+    expect(html).toContain('<ol start="3">')
+    expect(html).toContain("<li>调整字体大小</li>")
+    expect(html).toContain("<li>调整行间距与外边距</li>")
+  })
+
+  it("renders unordered lists with dash, asterisk, and plus markers", () => {
+    const markdown = `- 这是一个无序列表项
+- 这是另一个无序列表项`
+    const html = renderMarkdownPreview(markdown)
+
+    expect(html).toContain("<ul>")
+    expect(html).toContain("<li>这是一个无序列表项</li>")
+    expect(html).toContain("<li>这是另一个无序列表项</li>")
+  })
 })
 
 

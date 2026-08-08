@@ -465,12 +465,13 @@ markedInstance.use({
       return `<a href="${href}" target="_blank" rel="noopener noreferrer"${titleAttr}>${innerText}</a>`
     },
 
-    list({ items, ordered }: { items: Array<{ text: string, task?: boolean, checked?: boolean, tokens?: Tokens.Generic[] }>, ordered: boolean }) {
+    list({ items, ordered, start }: { items: Array<{ text: string, task?: boolean, checked?: boolean, tokens?: Tokens.Generic[] }>, ordered: boolean, start?: number | "" }) {
       const hasTaskList = items.some((item) => item.task || item.text?.includes("task-list-item-checkbox"))
       const tag = ordered ? "ol" : "ul"
       const listClass = hasTaskList ? ' class="task-list"' : ""
+      const startAttr = ordered && start && start !== 1 ? ` start="${start}"` : ""
       const body = items.map((item) => (this as any).listitem(item)).join("")
-      return `<${tag}${listClass}>${body}</${tag}>\n`
+      return `<${tag}${startAttr}${listClass}>${body}</${tag}>\n`
     },
 
     listitem(item: { text: string, task?: boolean, checked?: boolean, tokens?: Tokens.Generic[] }) {

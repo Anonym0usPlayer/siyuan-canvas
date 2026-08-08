@@ -1910,9 +1910,74 @@
   margin-bottom: 10px;
 }
 
-.markdown-preview :deep(ul),
+.markdown-preview :deep(ul) {
+  list-style-type: disc;
+  list-style-position: outside;
+  padding-left: 22px;
+}
+
 .markdown-preview :deep(ol) {
+  list-style-type: decimal;
+  list-style-position: outside;
+  padding-left: 22px;
+}
+
+.markdown-preview :deep(li) {
+  display: list-item;
+  margin-bottom: 4px;
+}
+
+.markdown-preview :deep(li > p) {
+  margin-bottom: 4px;
+}
+
+.markdown-preview :deep(ul ul),
+.markdown-preview :deep(ol ul) {
+  list-style-type: circle;
+  margin-top: 4px;
+  margin-bottom: 4px;
   padding-left: 20px;
+}
+
+.markdown-preview :deep(ul ul ul),
+.markdown-preview :deep(ol ul ul),
+.markdown-preview :deep(ul ol ul),
+.markdown-preview :deep(ol ol ul) {
+  list-style-type: square;
+}
+
+.markdown-preview :deep(ol ol),
+.markdown-preview :deep(ul ol) {
+  list-style-type: lower-alpha;
+  margin-top: 4px;
+  margin-bottom: 4px;
+  padding-left: 20px;
+}
+
+.markdown-preview :deep(ol ol ol),
+.markdown-preview :deep(ul ol ol),
+.markdown-preview :deep(ol ol ol),
+.markdown-preview :deep(ul ul ol) {
+  list-style-type: lower-roman;
+}
+
+.markdown-preview :deep(ul.task-list),
+.markdown-preview :deep(ol.task-list) {
+  list-style-type: none;
+  padding-left: 4px;
+}
+
+.markdown-preview :deep(li.task-list-item) {
+  list-style-type: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.markdown-preview :deep(li.task-list-item input.task-list-item-checkbox) {
+  margin: 3px 0 0 0;
+  cursor: default;
+  flex-shrink: 0;
 }
 
 .markdown-preview :deep(blockquote) {
@@ -1959,6 +2024,59 @@
 .markdown-preview :deep(a) {
   color: var(--canvas-accent);
   text-decoration: underline;
+}
+
+.markdown-preview :deep(table) {
+  width: 100%;
+  max-width: 100%;
+  margin-top: 6px;
+  margin-bottom: 12px;
+  border-collapse: collapse;
+  border-spacing: 0;
+  empty-cells: show;
+  border: 1px solid var(--canvas-border, var(--b3-border-color));
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.markdown-preview :deep(thead) {
+  background: var(--canvas-code-bg, color-mix(in srgb, var(--b3-theme-on-surface) 6%, transparent));
+  color: var(--canvas-text);
+  font-weight: 600;
+}
+
+.markdown-preview :deep(th),
+.markdown-preview :deep(td) {
+  padding: 6px 12px;
+  border: 1px solid var(--canvas-border, var(--b3-border-color));
+  text-align: left;
+  vertical-align: middle;
+  word-break: break-word;
+}
+
+.markdown-preview :deep(th) {
+  font-weight: 600;
+  background: var(--canvas-code-bg, color-mix(in srgb, var(--b3-theme-on-surface) 6%, transparent));
+}
+
+.markdown-preview :deep(tbody tr:nth-child(even)) {
+  background: color-mix(in srgb, var(--b3-theme-on-surface) 3%, transparent);
+}
+
+.markdown-preview :deep(tbody tr:hover) {
+  background: color-mix(in srgb, var(--b3-theme-on-surface) 6%, transparent);
+}
+
+.markdown-preview :deep(th[align="center"]),
+.markdown-preview :deep(td[align="center"]) {
+  text-align: center;
+}
+
+.markdown-preview :deep(th[align="right"]),
+.markdown-preview :deep(td[align="right"]) {
+  text-align: right;
 }
 
 .canvas-node__meta {
