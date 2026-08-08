@@ -31,12 +31,14 @@ import {
 } from "siyuan"
 import {
   computed,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   reactive,
   ref,
   watch,
 } from "vue"
+import { measureNodeContentSize } from "@/canvas/node-content-measurement"
 import {
   putFile,
   readDir,
@@ -524,12 +526,34 @@ export function useCanvasEditor(
   }
 
   async function refreshSelectedSiyuanNode() {
-    if (!canRefreshSelectedSiyuanNode.value || selectedNode.value?.type !== 'file') {
+    const node = selectedNode.value
+    if (!canRefreshSelectedSiyuanNode.value || !node || node.type !== 'file') {
       return
     }
 
     try {
-      await refreshFileNodeMetadata([selectedNode.value.id])
+      await refreshFileNodeMetadata([node.id])
+
+      // 等待 DOM 挂载和微任务渲染（如 Mermaid SVG / ECharts / Markdown）
+      await nextTick()
+
+      const stage = stageRef.value
+      const targetElement = stage?.querySelector(`[data-canvas-node-id="${node.id}"]`) as HTMLElement | null | undefined
+      if (targetElement) {
+        // 短暂延时确保原生渲染器（如 Mermaid / ECharts 直绘）微任务执行完毕
+        await new Promise(resolve => setTimeout(resolve, 60))
+
+        const measured = measureNodeContentSize(targetElement, node.width, node.height)
+        if (Math.abs(measured.width - node.width) > 4 || Math.abs(measured.height - node.height) > 4) {
+          const currentDoc = state.document
+          const found = currentDoc.nodes.find(n => n.id === node.id)
+          if (found) {
+            found.width = measured.width
+            found.height = measured.height
+            commitDocument({ ...currentDoc })
+          }
+        }
+      }
     } catch {
       showMessage(t('messageUnableRefreshSiyuanNode'), 4000, 'error')
     }
