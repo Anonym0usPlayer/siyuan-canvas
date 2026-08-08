@@ -2254,6 +2254,7 @@ import type { CanvasFilePickerOption } from "@/canvas/file-picker-dialog"
 import { getVideoEmbedUrl } from "@/canvas/markdown-preview"
 import { triggerNativeProtyleRender } from "@/canvas/protyle-native-render"
 import { collectUpstreamContext, requestAiSearch } from "@/canvas/ai-search-helper"
+import { openAiSearchPromptDialog } from "@/canvas/ai-search-prompt-dialog"
 import { findNonOverlappingPosition } from "@/canvas/node-overlap"
 import { createCanvasNode, createCanvasEdge } from "@/canvas/document"
 
@@ -2517,6 +2518,19 @@ async function handleAiSearch() {
   const targetNode = editor.state.document.nodes.find(n => n.id === selectedId)
   if (!targetNode || (targetNode.type !== "text" && targetNode.type !== "file")) return
 
+  const promptInput = await openAiSearchPromptDialog({
+    title: t("aiSearchDialogTitle") || "AI 探索",
+    hint: t("aiSearchDialogHint") || "请输入探索方向或具体要求（可选），直接确认将按默认规则发散：",
+    placeholder: t("aiSearchDialogPlaceholder") || "例如：核心概念推演、潜在风险分析、下一步实施方案等...",
+    confirmLabel: t("aiSearchDialogConfirm") || "开始探索",
+    cancelLabel: t("aiSearchDialogCancel") || "取消",
+  })
+
+  // 用户点击取消或关闭窗口，中止本次探索
+  if (promptInput === null) {
+    return
+  }
+
   isAiSearching.value = true
   const loadingMsgId = showMessage(t("aiSearchLoading") || "正在为您进行 AI 探索，请稍候...", 0)
 
@@ -2586,6 +2600,7 @@ async function handleAiSearch() {
       apiConfig,
       richness,
       cardCount,
+      customPrompt: promptInput,
     })
 
     // 4. 解析结果并进行排布生成
@@ -2600,8 +2615,8 @@ async function handleAiSearch() {
     const gapX = 120 // 水平间距
     const gapY = 40  // 垂直间距
     
-    // 新生文本卡片的标准宽高
-    const newCardWidth = 250
+    // 新生文本卡片的标准宽高（适配三级标题 + 150字概要说明）
+    const newCardWidth = 260
     const newCardHeight = 160
 
     const N = generatedCards.length

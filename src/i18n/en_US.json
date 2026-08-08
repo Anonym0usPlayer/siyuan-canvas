@@ -389,5 +389,10 @@
   "aiSearchErrorConfig": "AI Explore failed: LLM API not configured. Please check settings or enable API Switcher plugin.",
   "aiSearchErrorRequest": "AI Explore error occurred: {error}",
   "settingsGroupAiSearchSubTitle": "AI Explore Settings",
-  "settingsGroupAiApiSubTitle": "API Basic Settings"
+  "settingsGroupAiApiSubTitle": "API Basic Settings",
+  "aiSearchDialogTitle": "AI Explore",
+  "aiSearchDialogHint": "Enter exploration direction or specific requirements (optional), or confirm directly for default exploration:",
+  "aiSearchDialogPlaceholder": "e.g. Core concept breakdown, potential risks, implementation steps...",
+  "aiSearchDialogConfirm": "Start Explore",
+  "aiSearchDialogCancel": "Cancel"
 }

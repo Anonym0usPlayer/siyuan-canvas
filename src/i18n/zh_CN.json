@@ -389,5 +389,10 @@
   "aiSearchErrorConfig": "AI 探索失败：大模型 API 未配置，请前往设置或启用 API 旋钮插件",
   "aiSearchErrorRequest": "AI 探索发生错误：{error}",
   "settingsGroupAiSearchSubTitle": "AI 探索功能设置",
-  "settingsGroupAiApiSubTitle": "API 基础设置"
+  "settingsGroupAiApiSubTitle": "API 基础设置",
+  "aiSearchDialogTitle": "AI 探索",
+  "aiSearchDialogHint": "请输入探索方向或具体要求（可选），直接确认将按默认规则发散：",
+  "aiSearchDialogPlaceholder": "例如：核心概念推演、潜在风险分析、下一步实施方案等...",
+  "aiSearchDialogConfirm": "开始探索",
+  "aiSearchDialogCancel": "取消"
 }

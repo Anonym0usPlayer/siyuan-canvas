@@ -273,5 +273,50 @@ describe('requestAiSearch JSON parser tolerance', () => {
     ])
     fetchSpy.mockRestore()
   })
+
+  it('includes customPrompt in request payload when provided', async () => {
+    let capturedBody: any = null
+    const mockResponse = {
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            cards: [
+              { content: '### 核心推演\n聚焦该主题的概要说明。' },
+              { content: '### 潜在风险\n分析潜在实施风险。' }
+            ]
+          })
+        }
+      }]
+    }
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((_url, options: any) => {
+      capturedBody = JSON.parse(options.body)
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockResponse)
+      } as Response)
+    })
+
+    const result = await requestAiSearch({
+      collected: [],
+      relations: [],
+      targetNode: { id: 't1', type: 'text', title: 'Target', content: 'Vue3响应式原理', depth: 0 },
+      apiConfig: { provider: 'test', baseUrl: 'http://test.ai', apiKey: 'key', model: 'gpt-4', requestTimeoutSeconds: 5, temperature: 0.7, maxTokens: 100 },
+      cardCount: 2,
+      customPrompt: '重点分析 Proxy 与 Reflect 细节',
+    })
+
+    expect(result.cards.length).toBe(2)
+    expect(result.cards[0].content).toContain('### 核心推演')
+    expect(capturedBody).not.toBeNull()
+    const userPromptContent = capturedBody.messages.find((m: any) => m.role === 'user')?.content
+    expect(userPromptContent).toContain('【用户指定的探索方向与具体要求】')
+    expect(userPromptContent).toContain('重点分析 Proxy 与 Reflect 细节')
+    expect(userPromptContent).toContain('以 "### 标题" 的三级标题作为第一行')
+    expect(userPromptContent).toContain('少于 150 字的概要说明')
+
+    fetchSpy.mockRestore()
+  })
 })
+
 

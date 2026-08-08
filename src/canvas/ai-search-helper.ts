@@ -180,10 +180,11 @@ export async function requestAiSearch(options: {
     temperature: number
     maxTokens: number
   }
-  richness: "simple" | "medium" | "detailed"
+  richness?: "simple" | "medium" | "detailed"
   cardCount: number
+  customPrompt?: string
 }): Promise<AiSearchResponse> {
-  const { collected, relations, targetNode, apiConfig, richness, cardCount } = options
+  const { collected, relations, targetNode, apiConfig, richness = "medium", cardCount, customPrompt } = options
   const { baseUrl, apiKey, model, requestTimeoutSeconds, temperature, maxTokens } = apiConfig
 
   if (!baseUrl || !model) {
@@ -191,25 +192,23 @@ export async function requestAiSearch(options: {
   }
 
   // Construct system prompt
-  const systemPrompt = `你是一个思维导图和画布探索的 AI 助手。你的任务是根据用户提供的节点以及前序连线相关节点的上下文内容，针对当前选中的节点进行主题下钻、关联问题提出或关联知识点的探索。
-请根据用户设定的卡片数量以及内容丰富度需求，自动生成关联的子文本卡片内容。
+  const systemPrompt = `你是一个思维导图与画布探索的 AI 助手。你的任务是根据用户提供的节点以及前序连线相关节点的上下文内容，针对当前选中的节点进行主题下钻、关联问题提出或关联知识点的探索。
+请根据用户设定的卡片数量以及探索要求，自动生成关联的子文本卡片内容。
 
 输出格式必须为合法 JSON，绝对不要包含任何多余文字或解释，格式必须严格如下（包含顶层 "cards" 键）：
 {
   "cards": [
     {
-      "content": "新生成的关联卡片内容（可以使用 Markdown）"
+      "content": "### <三级主题标题>\\n<聚焦该主题概念的精炼概要说明，少于150字>"
     }
   ]
 }
 
-约束要求：
-1. 必须使用指定的 JSON 结构，顶层键必须为 "cards"。禁止直接输出类似 {"content": "..."} 的结构，即使只生成 1 个卡片，也必须将其包裹在 "cards" 数组中。
-2. **严格数量限制**："cards" 数组中的元素数量必须**正好且最多**等于指定的生成卡片数量：${cardCount} 个。绝对不能私自生成额外的卡片，否则会导致系统截断报错。
-3. 丰富度要求为 "${richness}"：
-   - "simple" (简洁): 每张卡片内容非常精炼，约 30-50 字内，1-2 句核心观点或直接回答。
-   - "medium" (适中): 每张卡片内容包含对主题的适度阐述，约 100-150 字左右，结构清晰。
-   - "detailed" (丰富): 每张卡片内容进行深度下钻，使用丰富的 Markdown 格式（如列表、粗体、分点说明），字数在 250 字以上。`
+卡片内容与排版约束要求：
+1. **格式规范**：每张卡片内容必须以 Markdown 三级标题（### 标题）开头，紧接着一行空行或换行，后跟该主题的精炼概要说明。
+2. **主题聚焦与字数限制**：每张卡片必须独立聚焦一个核心主题概念，概要说明必须少于 150 字，语言精练、重点突出，禁止冗长废话。
+3. **数量限制**："cards" 数组中的元素数量必须**正好且最多**等于指定的生成卡片数量：${cardCount} 个。
+4. 必须使用指定的 JSON 结构，顶层键必须为 "cards"。`
 
   // Construct user prompt
   let contextRelations = "无前序连线卡片。"
@@ -229,6 +228,11 @@ ${c.content}
     )).join("\n")
   }
 
+  let userSpecificInstruction = ""
+  if (customPrompt && customPrompt.trim()) {
+    userSpecificInstruction = `\n【用户指定的探索方向与具体要求】\n${customPrompt.trim()}\n请严格围绕用户的上述探索方向与具体要求进行深度探索发散。\n`
+  }
+
   const userPrompt = `[上下文节点连线关系]
 ${contextRelations}
  
@@ -239,9 +243,13 @@ ${nodeDetails}
 类型: ${targetNode.type === "text" ? "文本卡片" : "笔记卡片"} (标题: ${targetNode.title})
 内容:
 ${targetNode.content}
- 
-请根据以上上下文和当前选中的卡片，进行 AI 探索。生成 ${cardCount} 个直接相连且有深度的关联卡片内容，丰富度要求为 "${richness}"。只能输出 JSON，且必须严格遵循包含 "cards" 数组的顶层格式，禁止直接输出以 "content" 为顶层键的结构。
-【警告】必须且只能生成恰好 ${cardCount} 个卡片，绝对不要多于 ${cardCount} 个，请合理控制输出，防止生成内容过长被截断！`
+${userSpecificInstruction}
+请根据以上上下文和当前选中的卡片，进行 AI 探索。生成 ${cardCount} 个直接相连且有深度的关联卡片内容。
+每张卡片必须严格遵循：
+- 以 "### 标题" 的三级标题作为第一行；
+- 提供少于 150 字的概要说明，聚焦一个明确的主题概念；
+- 只能输出 JSON，且必须严格遵循包含 "cards" 数组的顶层格式。
+【警告】必须且只能生成恰好 ${cardCount} 个卡片，绝对不要多于 ${cardCount} 个！`
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
