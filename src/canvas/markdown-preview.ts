@@ -465,7 +465,8 @@ export function renderMarkdownPreview(markdown: string): string {
     const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/)
     if (headingMatch) {
       const level = headingMatch[1].length
-      blocks.push(`<h${level}>${renderInlineMarkdown(headingMatch[2]!)}</h${level}>`)
+      const titleContent = headingMatch[2]!.replace(/\s*#+\s*$/, "").trim()
+      blocks.push(`<h${level}>${renderInlineMarkdown(titleContent)}</h${level}>`)
       index += 1
       continue
     }

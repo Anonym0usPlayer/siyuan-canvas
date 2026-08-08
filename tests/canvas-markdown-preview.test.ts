@@ -210,15 +210,24 @@ graph TD
   })
 
   it("renders chart code block alias as echarts subtype NodeCodeBlock", () => {
-    const markdown = `\`\`\`chart
-{
-  "xAxis": {}
-}
-\`\`\``
+    const markdown = "```chart\n{\n  \"xAxis\": {}\n}\n```"
     const html = renderMarkdownPreview(markdown)
-
     expect(html).toContain('data-subtype="echarts"')
     expect(html).toContain('data-content="{\n  &quot;xAxis&quot;: {}\n}"')
     expect(html).toContain('<div style="width:100%;height:320px;" contenteditable="false"></div>')
   })
+
+  it("renders h1 through h6 headings with inline markdown and handles closing hashes", () => {
+    const markdown = "# Heading 1\n## Heading 2 with **bold**\n### Heading 3 with `code` ###\n#### Heading 4\n##### Heading 5\n###### Heading 6"
+    const html = renderMarkdownPreview(markdown)
+
+    expect(html).toContain("<h1>Heading 1</h1>")
+    expect(html).toContain("<h2>Heading 2 with <strong>bold</strong></h2>")
+    expect(html).toContain("<h3>Heading 3 with <code>code</code></h3>")
+    expect(html).toContain("<h4>Heading 4</h4>")
+    expect(html).toContain("<h5>Heading 5</h5>")
+    expect(html).toContain("<h6>Heading 6</h6>")
+  })
 })
+
+
