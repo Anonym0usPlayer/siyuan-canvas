@@ -228,6 +228,35 @@ graph TD
     expect(html).toContain("<h5>Heading 5</h5>")
     expect(html).toContain("<h6>Heading 6</h6>")
   })
+
+  it("renders GFM tables and strikethrough syntax correctly", () => {
+    const markdown = `| 标题1 | 标题2 |
+| --- | --- |
+| 单元格1 | ~~已废弃~~ |`
+    const html = renderMarkdownPreview(markdown)
+
+    expect(html).toContain("<table>")
+    expect(html).toContain("<th>标题1</th>")
+    expect(html).toContain("<th>标题2</th>")
+    expect(html).toContain("<td>单元格1</td>")
+    expect(html).toContain("<del>已废弃</del>")
+  })
+
+  it("renders nested lists and mixed formatting", () => {
+    const markdown = `* Item 1
+  * SubItem 1.1
+  * SubItem 1.2
+* Item 2`
+    const html = renderMarkdownPreview(markdown)
+
+    expect(html).toContain("<ul>")
+    expect(html).toContain("Item 1")
+    expect(html).toContain("<li>SubItem 1.1</li>")
+    expect(html).toContain("<li>SubItem 1.2</li>")
+    expect(html).toContain("<li>Item 2</li>")
+  })
 })
+
+
 
 

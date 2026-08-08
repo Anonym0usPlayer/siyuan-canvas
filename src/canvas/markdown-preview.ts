@@ -1,3 +1,5 @@
+import { Marked, type Tokens } from "marked"
+
 import {
   escapeHtml,
   escapeHtmlAttribute,
@@ -12,11 +14,11 @@ export {
   escapeHtmlAttribute,
   extractHtmlAttribute,
   normalizeMarkdownImageSource,
-  sanitizeMarkdownPreviewSource,
+  parseAllowedImageTag,
+  parseAllowedInlineOpenTag,
   sanitizeColorValue,
   sanitizeInlineStyle,
-  parseAllowedInlineOpenTag,
-  parseAllowedImageTag,
+  sanitizeMarkdownPreviewSource,
   type AllowedInlineOpenTag,
   type SanitizedImageTag,
 } from "@/canvas/markdown-sanitize"
@@ -165,13 +167,23 @@ function extractAllowedInlineHtml(value: string): { placeholders: string[], text
 
     const contentStart = openIndex + openTag.length
     const closeIndex = value.toLowerCase().indexOf(openTag.closeTag, contentStart)
-    const contentEnd = closeIndex >= 0 ? closeIndex : value.length
-    const innerHtml = renderInlineMarkdown(value.slice(contentStart, contentEnd))
+    const nextParagraphBreak = value.indexOf("\n\n", contentStart)
+    let contentEnd: number
+
+    if (closeIndex >= 0 && (nextParagraphBreak === -1 || closeIndex < nextParagraphBreak)) {
+      contentEnd = closeIndex
+    } else if (nextParagraphBreak >= 0) {
+      contentEnd = nextParagraphBreak
+    } else {
+      contentEnd = value.length
+    }
+
+    const innerContent = value.slice(contentStart, contentEnd)
     const placeholder = `%%HTML_${placeholders.length}%%`
 
-    placeholders.push(`${openTag.html}${innerHtml}${openTag.closeTag}`)
+    placeholders.push(`${openTag.html}${innerContent}${openTag.closeTag}`)
     text += placeholder
-    index = closeIndex >= 0 ? contentEnd + openTag.closeTag.length : value.length
+    index = closeIndex >= 0 && closeIndex === contentEnd ? contentEnd + openTag.closeTag.length : contentEnd
   }
 
   return {
@@ -180,7 +192,7 @@ function extractAllowedInlineHtml(value: string): { placeholders: string[], text
   }
 }
 
-export function getVideoEmbedUrl(url: string): { type: "youtube" | "bilibili"; embedUrl: string } | null {
+export function getVideoEmbedUrl(url: string): { type: "youtube" | "bilibili", embedUrl: string } | null {
   const cleanUrl = url.trim()
   let parsed: URL
   try {
@@ -236,7 +248,7 @@ export function getVideoEmbedUrl(url: string): { type: "youtube" | "bilibili"; e
     }
     const match = path.match(/\/video\/(BV[a-zA-Z0-9]+|av\d+)/i)
     if (match) {
-      const id = match[1]
+      const id = match[1]!
       if (id.toLowerCase().startsWith("bv")) {
         return {
           type: "bilibili",
@@ -315,62 +327,7 @@ function createVideoIframeHtml(
     + `</div>`
 }
 
-function renderInlineMarkdown(value: string): string {
-  const codePlaceholders: string[] = []
-  let rendered = value.replace(/`([^`\n]+)`/g, (_, code: string) => {
-    const placeholder = `%%CODE_${codePlaceholders.length}%%`
-    codePlaceholders.push(`<code>${escapeHtml(code)}</code>`)
-    return placeholder
-  })
-  const imagePlaceholders: string[] = []
-  rendered = rendered.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g, (_match, alt: string, source: string, title?: string) => {
-    const placeholder = `%%IMAGE_${imagePlaceholders.length}%%`
-    const src = escapeHtmlAttribute(normalizeMarkdownImageSource(source))
-    const escapedAlt = escapeHtmlAttribute(alt)
-    const titleAttribute = title ? ` title="${escapeHtmlAttribute(title)}"` : ""
-
-    imagePlaceholders.push(`<img src="${src}" alt="${escapedAlt}"${titleAttribute}>`)
-    return placeholder
-  })
-
-  // Extract Bilibili and YouTube links to video placeholders
-  const videoPlaceholders: string[] = []
-  rendered = rendered.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (match, label: string, url: string) => {
-    const videoInfo = getVideoEmbedUrl(url)
-    if (videoInfo) {
-      const placeholder = `%%VIDEO_${videoPlaceholders.length}%%`
-      videoPlaceholders.push(createVideoIframeHtml(videoInfo.type, videoInfo.embedUrl, url, label))
-      return placeholder
-    }
-    return match
-  })
-
-  rendered = rendered.replace(/(https?:\/\/[^\s)<>"]+)/g, (match) => {
-    const videoInfo = getVideoEmbedUrl(match)
-    if (videoInfo) {
-      const placeholder = `%%VIDEO_${videoPlaceholders.length}%%`
-      videoPlaceholders.push(createVideoIframeHtml(videoInfo.type, videoInfo.embedUrl, match, ""))
-      return placeholder
-    }
-    return match
-  })
-
-  const { placeholders: htmlPlaceholders, text } = extractAllowedInlineHtml(rendered)
-  rendered = escapeHtml(text)
-
-  rendered = rendered
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_match, label: string, url: string) =>
-      `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`,
-    )
-    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/__([^_]+)__/g, "<strong>$1</strong>")
-  rendered = restorePlaceholders(rendered, "HTML", htmlPlaceholders)
-  rendered = restorePlaceholders(rendered, "IMAGE", imagePlaceholders)
-  rendered = restorePlaceholders(rendered, "VIDEO", videoPlaceholders)
-  return restorePlaceholders(rendered, "CODE", codePlaceholders)
-}
-
-function parseSoloVideoLink(line: string): { type: "youtube" | "bilibili"; embedUrl: string; originalUrl: string; label?: string } | null {
+function parseSoloVideoLink(line: string): { type: "youtube" | "bilibili", embedUrl: string, originalUrl: string, label?: string } | null {
   const trimmed = line.trim()
   if (!trimmed) {
     return null
@@ -409,9 +366,157 @@ function parseSoloVideoLink(line: string): { type: "youtube" | "bilibili"; embed
   return null
 }
 
-function renderParagraph(lines: string[]): string {
-  return `<p>${lines.map((line) => renderInlineMarkdown(line)).join("<br>")}</p>`
+function extractVideoPlaceholders(text: string): { placeholders: string[], text: string } {
+  const placeholders: string[] = []
+
+  // 1. 抽取行内代码与代码块，防止代码块内的 url 被误替换
+  const codePlaceholders: string[] = []
+  let processed = text.replace(/`([^`\n]+)`/g, (_, code: string) => {
+    const placeholder = `%%CODE_INLINE_${codePlaceholders.length}%%`
+    codePlaceholders.push(`\`${code}\``)
+    return placeholder
+  })
+
+  // 2. 匹配独占一行的独立视频链接
+  const lines = processed.split("\n")
+  const processedLines: string[] = []
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!
+    const soloVideo = parseSoloVideoLink(line)
+    if (soloVideo) {
+      const placeholder = `%%VIDEO_${placeholders.length}%%`
+      placeholders.push(createVideoIframeHtml(soloVideo.type, soloVideo.embedUrl, soloVideo.originalUrl, soloVideo.label))
+      processedLines.push(`\n\n${placeholder}\n\n`)
+      continue
+    }
+    processedLines.push(line)
+  }
+  processed = processedLines.join("\n")
+
+  // 3. 匹配行内的 Markdown 格式视频链接 [label](url)
+  processed = processed.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (match, label: string, url: string) => {
+    const videoInfo = getVideoEmbedUrl(url)
+    if (videoInfo) {
+      const placeholder = `%%VIDEO_${placeholders.length}%%`
+      placeholders.push(createVideoIframeHtml(videoInfo.type, videoInfo.embedUrl, url, label))
+      return placeholder
+    }
+    return match
+  })
+
+  // 4. 匹配行内的裸 URL
+  processed = processed.replace(/(https?:\/\/[^\s)<>"]+)/g, (match) => {
+    const videoInfo = getVideoEmbedUrl(match)
+    if (videoInfo) {
+      const placeholder = `%%VIDEO_${placeholders.length}%%`
+      placeholders.push(createVideoIframeHtml(videoInfo.type, videoInfo.embedUrl, match, ""))
+      return placeholder
+    }
+    return match
+  })
+
+  // 5. 还原行内代码
+  processed = codePlaceholders.reduce(
+    (current, code, index) => current.replaceAll(`%%CODE_INLINE_${index}%%`, code),
+    processed,
+  )
+
+  return {
+    placeholders,
+    text: processed,
+  }
 }
+
+function escapeRawHtmlOutsidePlaceholders(value: string): string {
+  // 转义未被 %%HTML_\d+%% 保护的 < 标签（防止 <script> 等 XSS 攻击）
+  return value.replace(/<(?!\/?%%HTML_\d+%%)([^>]+)>/g, (match) => {
+    return escapeHtml(match)
+  })
+}
+
+const markedInstance = new Marked({
+  gfm: true,
+  breaks: true,
+})
+
+markedInstance.use({
+  renderer: {
+    code({ text, lang }: { text: string, lang?: string }) {
+      const language = (lang || "").trim().toLowerCase()
+      const renderSubtypes = ["mermaid", "echarts", "chart", "mindmap", "flowchart", "graphviz", "math"]
+      if (renderSubtypes.includes(language)) {
+        const subtype = language === "chart" ? "echarts" : language
+        const extraHtml = subtype === "echarts" ? '<div style="width:100%;height:320px;" contenteditable="false"></div>' : ""
+        return `<div data-type="NodeCodeBlock" class="render-node" data-subtype="${subtype}" data-content="${escapeHtmlAttribute(text)}"><div spin="1"></div>${extraHtml}</div>\n`
+      }
+      return `<pre><code>${escapeHtml(text)}</code></pre>\n`
+    },
+
+    image({ href, title, text }: { href: string, title?: string | null, text: string }) {
+      const src = escapeHtmlAttribute(normalizeMarkdownImageSource(href || ""))
+      const alt = escapeHtmlAttribute(text || "")
+      const titleAttr = title ? ` title="${escapeHtmlAttribute(title)}"` : ""
+      return `<img src="${src}" alt="${alt}"${titleAttr}>`
+    },
+
+    link({ href, title, tokens }: { href: string, title?: string | null, tokens?: Tokens.Generic[] }) {
+      const innerText = (this as any).parser?.parseInline ? (this as any).parser.parseInline(tokens || []) : href
+      const titleAttr = title ? ` title="${escapeHtmlAttribute(title)}"` : ""
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer"${titleAttr}>${innerText}</a>`
+    },
+
+    list({ items, ordered }: { items: Array<{ text: string, task?: boolean, checked?: boolean, tokens?: Tokens.Generic[] }>, ordered: boolean }) {
+      const hasTaskList = items.some((item) => item.task || item.text?.includes("task-list-item-checkbox"))
+      const tag = ordered ? "ol" : "ul"
+      const listClass = hasTaskList ? ' class="task-list"' : ""
+      const body = items.map((item) => (this as any).listitem(item)).join("")
+      return `<${tag}${listClass}>${body}</${tag}>\n`
+    },
+
+    listitem(item: { text: string, task?: boolean, checked?: boolean, tokens?: Tokens.Generic[] }) {
+      const parser = (this as any).parser
+      let content = ""
+
+      if (item.tokens && item.tokens.length > 0 && parser) {
+        // 如果只有一个纯文本或段落节点，解析为 inline 保持紧凑
+        if (item.tokens.length === 1 && (item.tokens[0]?.type === "text" || item.tokens[0]?.type === "paragraph")) {
+          const innerTokens = (item.tokens[0] as any).tokens || [item.tokens[0]]
+          content = parser.parseInline(innerTokens)
+        } else {
+          content = parser.parse(item.tokens)
+        }
+      } else {
+        content = item.text
+      }
+
+      if (item.task) {
+        const checkboxHtml = `<input type="checkbox" disabled class="task-list-item-checkbox"${item.checked ? " checked" : ""}> `
+        return `<li class="task-list-item">${checkboxHtml}${content}</li>`
+      }
+      return `<li>${content}</li>`
+    },
+
+    heading({ tokens, depth, text }: { tokens?: Tokens.Generic[], depth: number, text: string }) {
+      const inlineHtml = (this as any).parser?.parseInline ? (this as any).parser.parseInline(tokens || []) : text
+      const cleanHtml = inlineHtml.replace(/\s*#+\s*$/, "").trim()
+      return `<h${depth}>${cleanHtml}</h${depth}>\n`
+    },
+
+    blockquote({ tokens, text }: { tokens?: Tokens.Generic[], text: string }) {
+      const body = (this as any).parser?.parse ? (this as any).parser.parse(tokens || []) : `<p>${text}</p>`
+      return `<blockquote>${body.trim()}</blockquote>\n`
+    },
+
+    paragraph({ tokens, text }: { tokens?: Tokens.Generic[], text: string }) {
+      const inlineHtml = (this as any).parser?.parseInline ? (this as any).parser.parseInline(tokens || []) : text
+      const trimmed = inlineHtml.trim()
+      if (/^%%VIDEO_\d+%%$/.test(trimmed)) {
+        return `${trimmed}\n`
+      }
+      return `<p>${inlineHtml}</p>\n`
+    },
+  },
+})
 
 export function renderMarkdownPreview(markdown: string): string {
   const normalized = sanitizeMarkdownPreviewSource(markdown)
@@ -419,114 +524,77 @@ export function renderMarkdownPreview(markdown: string): string {
     return ""
   }
 
+  // 1. 保护代码块
+  const codeBlockPlaceholders: string[] = []
   const lines = normalized.split("\n")
-  const blocks: string[] = []
-  let index = 0
+  const nonCodeLines: string[] = []
+  let inCodeBlock = false
+  let currentCodeLines: string[] = []
 
-  while (index < lines.length) {
-    const line = lines[index]!.trimEnd()
+  for (const line of lines) {
     const trimmed = line.trim()
-
-    if (!trimmed) {
-      index += 1
-      continue
-    }
-
     if (trimmed.startsWith("```")) {
-      const language = trimmed.slice(3).trim().toLowerCase()
-      index += 1
-      const codeLines: string[] = []
-      while (index < lines.length && !lines[index]!.trim().startsWith("```")) {
-        codeLines.push(lines[index]!)
-        index += 1
-      }
-      const rawCode = codeLines.join("\n")
-      const renderSubtypes = ["mermaid", "echarts", "chart", "mindmap", "flowchart", "graphviz", "math"]
-      if (renderSubtypes.includes(language)) {
-        const subtype = language === "chart" ? "echarts" : language
-        const extraHtml = subtype === "echarts" ? '<div style="width:100%;height:320px;" contenteditable="false"></div>' : ""
-        blocks.push(
-          `<div data-type="NodeCodeBlock" class="render-node" data-subtype="${subtype}" data-content="${escapeHtmlAttribute(rawCode)}"><div spin="1"></div>${extraHtml}</div>`,
-        )
+      if (!inCodeBlock) {
+        inCodeBlock = true
+        currentCodeLines = [line]
       } else {
-        blocks.push(`<pre><code>${escapeHtml(rawCode)}</code></pre>`)
+        inCodeBlock = false
+        currentCodeLines.push(line)
+        const placeholder = `%%CODE_BLOCK_${codeBlockPlaceholders.length}%%`
+        codeBlockPlaceholders.push(currentCodeLines.join("\n"))
+        nonCodeLines.push(placeholder)
+        currentCodeLines = []
       }
-      index += 1
       continue
     }
 
-    const soloVideo = parseSoloVideoLink(trimmed)
-    if (soloVideo) {
-      blocks.push(createVideoIframeHtml(soloVideo.type, soloVideo.embedUrl, soloVideo.originalUrl, soloVideo.label))
-      index += 1
-      continue
+    if (inCodeBlock) {
+      currentCodeLines.push(line)
+    } else {
+      nonCodeLines.push(line)
     }
-
-    const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/)
-    if (headingMatch) {
-      const level = headingMatch[1].length
-      const titleContent = headingMatch[2]!.replace(/\s*#+\s*$/, "").trim()
-      blocks.push(`<h${level}>${renderInlineMarkdown(titleContent)}</h${level}>`)
-      index += 1
-      continue
-    }
-
-    if (/^>\s?/.test(trimmed)) {
-      const quoteLines: string[] = []
-      while (index < lines.length && /^>\s?/.test(lines[index]!.trim())) {
-        quoteLines.push(lines[index]!.trim().replace(/^>\s?/, ""))
-        index += 1
-      }
-      blocks.push(`<blockquote>${renderParagraph(quoteLines)}</blockquote>`)
-      continue
-    }
-
-    if (/^([-*+]\s+|\d+\.\s+)/.test(trimmed)) {
-      const items: string[] = []
-      const isOrdered = /^\d+\.\s+/.test(trimmed)
-      const pattern = isOrdered ? /^\d+\.\s+/ : /^[-*+]\s+/
-      let isTaskList = false
-
-      while (index < lines.length && pattern.test(lines[index]!.trim())) {
-        const rawContent = lines[index]!.trim().replace(pattern, "")
-        const taskMatch = rawContent.match(/^\[([ xX])\]\s+(.*)$/)
-        if (taskMatch) {
-          isTaskList = true
-          const isChecked = taskMatch[1].toLowerCase() === "x"
-          const taskContent = taskMatch[2]!
-          const checkboxHtml = `<input type="checkbox" disabled class="task-list-item-checkbox"${isChecked ? " checked" : ""}> `
-          items.push(`<li class="task-list-item">${checkboxHtml}${renderInlineMarkdown(taskContent)}</li>`)
-        } else {
-          items.push(`<li>${renderInlineMarkdown(rawContent)}</li>`)
-        }
-        index += 1
-      }
-
-      const tag = isOrdered ? "ol" : "ul"
-      const listClass = isTaskList ? ' class="task-list"' : ""
-      blocks.push(`<${tag}${listClass}>${items.join("")}</${tag}>`)
-      continue
-    }
-
-    const paragraphLines = [trimmed]
-    index += 1
-    while (index < lines.length) {
-      const next = lines[index]!.trim()
-      if (
-        !next ||
-        next.startsWith("```") ||
-        /^>\s?/.test(next) ||
-        /^(#{1,6})\s+/.test(next) ||
-        /^([-*+]\s+|\d+\.\s+)/.test(next) ||
-        parseSoloVideoLink(next)
-      ) {
-        break
-      }
-      paragraphLines.push(next)
-      index += 1
-    }
-    blocks.push(renderParagraph(paragraphLines))
   }
 
-  return blocks.join("")
+  if (inCodeBlock && currentCodeLines.length > 0) {
+    const placeholder = `%%CODE_BLOCK_${codeBlockPlaceholders.length}%%`
+    codeBlockPlaceholders.push(currentCodeLines.join("\n"))
+    nonCodeLines.push(placeholder)
+  }
+
+  const processedText = nonCodeLines.join("\n")
+
+  // 2. 抽取白名单 HTML 标签（如 <font>, <mark>, <span style>, <img>）
+  const { placeholders: htmlPlaceholders, text: textAfterHtml } = extractAllowedInlineHtml(processedText)
+
+  // 3. 抽取视频链接占位符
+  const { placeholders: videoPlaceholders, text: textAfterVideo } = extractVideoPlaceholders(textAfterHtml)
+
+  // 4. 转义未受保护的非法 raw HTML 标签（如 <script>）
+  const safeText = escapeRawHtmlOutsidePlaceholders(textAfterVideo)
+
+  // 5. 还原代码块以供 marked 解析
+  const textForMarked = restorePlaceholders(safeText, "CODE_BLOCK", codeBlockPlaceholders)
+
+  // 6. 执行 marked 高速标准 GFM 解析
+  let rendered = markedInstance.parse(textForMarked) as string
+
+  // 7. 还原视频卡片
+  rendered = restorePlaceholders(rendered, "VIDEO", videoPlaceholders)
+
+  // 8. 还原安全白名单内联 HTML，并对其内部可能包含的 markdown 进行内联渲染
+  const restoredHtmlPlaceholders = htmlPlaceholders.map((html) => {
+    const match = html.match(/^((?:<mark|<font|<span)[\s\S]*?>)([\s\S]*?)((?:<\/mark>|<\/font>|<\/span>))$/i)
+    if (match) {
+      const openTag = match[1]!
+      const inner = match[2]!
+      const closeTag = match[3]!
+      const renderedInner = (markedInstance.parseInline(inner) as string).trim()
+      return `${openTag}${renderedInner}${closeTag}`
+    }
+    return html
+  })
+
+  rendered = restorePlaceholders(rendered, "HTML", restoredHtmlPlaceholders)
+
+  return rendered.trim()
 }

@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "html-to-image": "^1.11.13",
+    "marked": "^16.4.2",
     "vue": "^3.3.8"
   },
   "devDependencies": {
