@@ -577,6 +577,102 @@ export function openCanvasPluginSettingsPanel(options: CanvasPluginSettingsPanel
   }
   tryCategorize()
 
+  const onAiConfigChanged = (e: Event) => {
+    const customEvent = e as CustomEvent
+    const newConfig = customEvent.detail
+    const isNowControlled = Boolean(newConfig)
+
+    const baseUrlEl = document.querySelector('[data-setting-key="aiBaseUrl"]') as HTMLInputElement | null
+    if (!baseUrlEl) {
+      window.removeEventListener("siyuan-canvas:ai-config-changed", onAiConfigChanged)
+      return
+    }
+
+    const providerEl = document.querySelector('[data-setting-key="aiProvider"]') as HTMLInputElement | null
+    const apiKeyEl = document.querySelector('[data-setting-key="aiApiKey"]') as HTMLInputElement | null
+    const modelEl = document.querySelector('[data-setting-key="aiModel"]') as HTMLInputElement | null
+    const modelsEl = document.querySelector('[data-setting-key="aiModels"]') as HTMLInputElement | null
+    const timeoutEl = document.querySelector('[data-setting-key="aiRequestTimeoutSeconds"]') as HTMLInputElement | null
+    const tempEl = document.querySelector('[data-setting-key="aiTemperature"]') as HTMLInputElement | null
+    const maxTokensEl = document.querySelector('[data-setting-key="aiMaxTokens"]') as HTMLInputElement | null
+
+    if (providerEl) {
+      providerEl.value = isNowControlled ? (newConfig.provider || "openai") : (draft.aiProvider || "openai")
+      providerEl.disabled = isNowControlled
+    }
+    if (baseUrlEl) {
+      baseUrlEl.value = isNowControlled ? (newConfig.baseUrl || "") : (draft.aiBaseUrl || "")
+      baseUrlEl.disabled = isNowControlled
+    }
+    if (apiKeyEl) {
+      apiKeyEl.value = isNowControlled ? (newConfig.apiKey || "") : (draft.aiApiKey || "")
+      apiKeyEl.disabled = isNowControlled
+    }
+    if (modelEl) {
+      modelEl.value = isNowControlled ? (newConfig.model || "") : (draft.aiModel || "")
+      modelEl.disabled = isNowControlled
+    }
+    if (modelsEl) {
+      modelsEl.value = isNowControlled ? (Array.isArray(newConfig.models) ? newConfig.models.join(", ") : (newConfig.model || "")) : (draft.aiModels || "")
+      modelsEl.disabled = isNowControlled
+    }
+    if (timeoutEl) {
+      timeoutEl.value = isNowControlled ? (newConfig.requestTimeoutSeconds ?? 30).toString() : (draft.aiRequestTimeoutSeconds ?? 30).toString()
+      timeoutEl.disabled = isNowControlled
+    }
+    if (tempEl) {
+      tempEl.value = isNowControlled ? (newConfig.temperature ?? 0.7).toString() : (draft.aiTemperature ?? 0.7).toString()
+      tempEl.disabled = isNowControlled
+    }
+    if (maxTokensEl) {
+      maxTokensEl.value = isNowControlled ? (newConfig.maxTokens ?? 4096).toString() : (draft.aiMaxTokens ?? 4096).toString()
+      maxTokensEl.disabled = isNowControlled
+    }
+
+    const apiKeys = [
+      "aiProvider", "aiBaseUrl", "aiApiKey", "aiModel", "aiModels",
+      "aiRequestTimeoutSeconds", "aiTemperature", "aiMaxTokens"
+    ]
+    for (const key of apiKeys) {
+      const el = document.querySelector(`[data-setting-key="${key}"]`)
+      if (el) {
+        let itemWrapper: HTMLElement | null = el as HTMLElement
+        while (itemWrapper && itemWrapper.parentElement && !itemWrapper.classList.contains("siyuan-canvas-settings-details-content")) {
+          if (itemWrapper.parentElement.classList.contains("siyuan-canvas-settings-details-content")) {
+            break
+          }
+          itemWrapper = itemWrapper.parentElement
+        }
+        if (itemWrapper) {
+          if (isNowControlled) {
+            itemWrapper.classList.add("siyuan-canvas-settings-item--disabled")
+          } else {
+            itemWrapper.classList.remove("siyuan-canvas-settings-item--disabled")
+          }
+        }
+      }
+    }
+
+    const aiContent = document.querySelector('[data-setting-key="aiProvider"]')?.closest(".siyuan-canvas-settings-details-content")
+    if (aiContent) {
+      let banner = aiContent.querySelector(".siyuan-canvas-settings-banner")
+      if (isNowControlled) {
+        if (!banner) {
+          banner = document.createElement("div")
+          banner.className = "siyuan-canvas-settings-banner"
+          banner.textContent = t("settingsAiControlledHint" as any) || "当前已由 API 旋钮 (siyuan-api-switch) 插件接管配置，本地设置已失效。"
+          aiContent.insertBefore(banner, aiContent.firstChild)
+        }
+      } else {
+        if (banner) {
+          banner.remove()
+        }
+      }
+    }
+  }
+
+  window.addEventListener("siyuan-canvas:ai-config-changed", onAiConfigChanged)
+
   return setting
 }
 

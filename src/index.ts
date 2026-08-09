@@ -288,6 +288,7 @@ export default class SiyuanCanvasPlugin extends Plugin {
         (config: any) => {
           this.activeAiConfig.value = config
           console.log("[siyuan-canvas] AI Config updated by api-switch:", config)
+          window.dispatchEvent(new CustomEvent("siyuan-canvas:ai-config-changed", { detail: config }))
         },
         localConfig
       )
