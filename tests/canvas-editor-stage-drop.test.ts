@@ -299,4 +299,45 @@ describe('canvas editor stage drop', () => {
     expect(edge.toSide).toBe('left')
     expect(edge.endArrow).toBe(true)
   })
+
+  it('creates file node with 360x240 size when dropping a .canvas file from workspace tree', async () => {
+    const { committed, harness, refreshFileNodeMetadata, selectNode } = createStageDropHarness()
+
+    const stageEl = document.createElement('section')
+    stageEl.getBoundingClientRect = vi.fn(() => ({
+      bottom: 600,
+      height: 600,
+      left: 0,
+      right: 800,
+      top: 0,
+      width: 800,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    }))
+
+    const event = {
+      clientX: 400,
+      clientY: 300,
+      currentTarget: stageEl,
+      dataTransfer: {
+        getData: (type: string) => (type === 'application/siyuan-workspace-file' ? 'folder/demo.canvas' : ''),
+        types: ['application/siyuan-workspace-file'],
+      },
+      preventDefault: vi.fn(),
+    } as unknown as DragEvent
+
+    await harness.handleStageDrop(event)
+
+    expect(event.preventDefault).toHaveBeenCalled()
+    expect(committed).toHaveLength(1)
+    const node = committed[0].nodes.find((n: any) => n.type === 'file')!
+    expect(node.file).toBe('folder/demo.canvas')
+    expect(node.width).toBe(360)
+    expect(node.height).toBe(240)
+    expect(node.x).toBe(220) // 400 - 360/2
+    expect(node.y).toBe(180) // 300 - 240/2
+    expect(selectNode).toHaveBeenCalledWith(node.id)
+    expect(refreshFileNodeMetadata).toHaveBeenCalledWith([node.id])
+  })
 })

@@ -13,6 +13,7 @@ import { getDroppedFilePath } from '@/canvas/open-external-file'
 
 const SIYUAN_DROP_FILE = 'application/siyuan-file'
 const SIYUAN_DROP_GUTTER = 'application/siyuan-gutter'
+const SIYUAN_WORKSPACE_FILE = 'application/siyuan-workspace-file'
 const ZWSP = '​'
 const SIYUAN_BLOCK_ID_PATTERN = /^\d{14}-[a-z0-9]{7}$/i
 
@@ -20,7 +21,7 @@ interface CanvasEditorStageDropOptions {
   board: ComputedRef<CanvasBoardMetrics>
   commitDocument: (document: ReturnType<typeof upsertCanvasNode>) => void
   fileSource: Ref<CanvasEditorFileSource>
-  refreshFileNodeMetadata: () => Promise<void>
+  refreshFileNodeMetadata: (nodeIds?: string[]) => Promise<void>
   selectNode: (nodeId?: string) => void
   state: CanvasEditorState
   t: CanvasI18nTranslator
@@ -48,11 +49,13 @@ export function createCanvasEditorStageDropActions(options: CanvasEditorStageDro
     if (!types)
       return
 
-    const hasSiyuanDrop = types.includes(SIYUAN_DROP_FILE)
-      || types.some(t => t.startsWith(SIYUAN_DROP_GUTTER))
-    const hasFiles = types.includes('Files')
+    const typesArray = Array.from(types)
+    const hasSiyuanDrop = typesArray.includes(SIYUAN_DROP_FILE)
+      || typesArray.some(t => t.startsWith(SIYUAN_DROP_GUTTER))
+    const hasWorkspaceFile = typesArray.includes(SIYUAN_WORKSPACE_FILE)
+    const hasFiles = typesArray.includes('Files')
 
-    if (!hasSiyuanDrop && !hasFiles)
+    if (!hasSiyuanDrop && !hasFiles && !hasWorkspaceFile)
       return
 
     event.preventDefault()
@@ -65,7 +68,7 @@ export function createCanvasEditorStageDropActions(options: CanvasEditorStageDro
     let rawIds = event.dataTransfer?.getData(SIYUAN_DROP_FILE) ?? ''
 
     if (!rawIds) {
-      const gutterType = event.dataTransfer?.types.find(t => t.startsWith(SIYUAN_DROP_GUTTER))
+      const gutterType = event.dataTransfer?.types ? Array.from(event.dataTransfer.types).find(t => t.startsWith(SIYUAN_DROP_GUTTER)) : undefined
       if (gutterType) {
         const parts = gutterType.split(ZWSP)
         rawIds = parts[2] ?? ''
@@ -120,6 +123,60 @@ export function createCanvasEditorStageDropActions(options: CanvasEditorStageDro
 
       commitDocument(currentDoc)
       await refreshFileNodeMetadata(newNodes.map(n => n.id))
+      return
+    }
+
+    // 3. 处理工作区文档树拖拽进入的文件（如 .canvas 文件）
+    let workspaceFilePath = event.dataTransfer?.getData(SIYUAN_WORKSPACE_FILE) || ''
+    if (!workspaceFilePath && event.dataTransfer?.types) {
+      const typesArray = Array.from(event.dataTransfer.types)
+      if (typesArray.includes('text/plain')) {
+        const textData = event.dataTransfer.getData('text/plain')
+        if (textData && (textData.endsWith('.canvas') || textData.includes('/'))) {
+          workspaceFilePath = textData
+        }
+      }
+    }
+
+    if (workspaceFilePath) {
+      if (fileSource.value !== 'workspace' || !state.filePath.endsWith('.canvas')) {
+        showMessage(t('messageUnableDropWithoutWorkspaceCanvas'), 4000, 'warning')
+        return
+      }
+
+      event.preventDefault()
+
+      const stageEl = (event.currentTarget as HTMLElement)
+      const rect = stageEl.getBoundingClientRect()
+      const stageX = event.clientX - rect.left
+      const stageY = event.clientY - rect.top
+
+      const dragSourceNodeId = event.dataTransfer?.getData('application/siyuan-canvas-drag-source-node-id') ?? ''
+
+      const node = createFileNodeAtViewport(
+        board.value,
+        viewport,
+        { x: stageX, y: stageY },
+      )
+      node.file = workspaceFilePath
+      if (workspaceFilePath.endsWith('.canvas')) {
+        node.width = 360
+        node.height = 240
+      } else {
+        node.width = 320
+        node.height = 160
+      }
+      node.x -= Math.round(node.width / 2)
+      node.y -= Math.round(node.height / 2)
+
+      let currentDoc = upsertCanvasNode(state.document, node)
+      if (dragSourceNodeId) {
+        currentDoc = autoConnectSourceEdge(currentDoc, dragSourceNodeId, node)
+      }
+
+      commitDocument(currentDoc)
+      selectNode(node.id)
+      await refreshFileNodeMetadata([node.id])
       return
     }
 

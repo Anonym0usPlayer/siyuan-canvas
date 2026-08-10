@@ -61,4 +61,34 @@ describe('canvas editor node activation', () => {
 
     expect(mockOpenPath).toHaveBeenCalledWith('C:\\Users\\Admin\\Desktop\\report.pdf')
   })
+
+  it('opens canvas tab when resolved.kind is canvas', () => {
+    const openCanvasTab = vi.fn(async () => {})
+    const actions = createCanvasEditorNodeActivationActions({
+      ensureCanvasPath: (p: string) => `data/plugins/siyuan-canvas/${p}`,
+      getResolvedFileNode: (node: any) => ({
+        detail: node.file,
+        kind: 'canvas',
+        path: node.file,
+        title: 'Nested Canvas',
+      }),
+      openDocumentByBlockId: vi.fn(async () => {}),
+      plugin: { openCanvasTab } as any,
+      t: (k: string) => k,
+    })
+
+    const canvasNode = {
+      height: 240,
+      id: 'file-456',
+      type: 'file' as const,
+      width: 360,
+      x: 100,
+      y: 100,
+      file: 'nested.canvas',
+    }
+
+    actions.activateNode(canvasNode)
+
+    expect(openCanvasTab).toHaveBeenCalledWith({ path: 'data/plugins/siyuan-canvas/nested.canvas' })
+  })
 })

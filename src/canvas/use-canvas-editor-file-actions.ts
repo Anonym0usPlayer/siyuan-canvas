@@ -80,7 +80,10 @@ function normalizeWorkspaceCanvasPath(input: string, baseDirectory: string): str
   }
 
   const normalized = trimmed.endsWith(".canvas") ? trimmed : `${trimmed}.canvas`
-  return normalized.startsWith("/") ? normalized : `${baseDirectory}/${normalized}`
+  if (normalized.startsWith('/') || normalized.startsWith('data/') || (baseDirectory && normalized.startsWith(baseDirectory))) {
+    return normalized
+  }
+  return `${baseDirectory}/${normalized}`
 }
 
 function sanitizeCanvasFileName(name: string): string {

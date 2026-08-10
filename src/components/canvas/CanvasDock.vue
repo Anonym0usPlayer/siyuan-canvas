@@ -645,8 +645,9 @@ const {
 // === 5. 拖拽与放置代理事件 ===
 const onFileDragStart = (event: DragEvent, filePath: string) => {
   if (!event.dataTransfer) return
-  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.effectAllowed = 'copyMove'
   event.dataTransfer.setData('text/plain', filePath)
+  event.dataTransfer.setData('application/siyuan-workspace-file', filePath)
   dragSourcePath.value = filePath
 }
 
