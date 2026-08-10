@@ -67,8 +67,10 @@ export async function initializeCanvasEditor(options: InitializeCanvasEditorOpti
     try {
       await state.open(bootstrap.path)
       suggestedFilename.value = getFileName(bootstrap.path)
-      fileSource.value = 'workspace'
-      await rememberRecentPath(bootstrap.path, 'workspace')
+      const isLocal = /^[a-zA-Z]:[/\\]/.test(bootstrap.path) || /^[/\\]+[a-zA-Z]:/.test(bootstrap.path) || bootstrap.path.startsWith('file://')
+      const sourceType = isLocal ? 'local' : 'workspace'
+      fileSource.value = sourceType
+      await rememberRecentPath(bootstrap.path, sourceType)
     } catch (error) {
       showMessage(error instanceof Error ? error.message : t('messageUnableOpenCanvasFile'), 4000, 'error')
     }

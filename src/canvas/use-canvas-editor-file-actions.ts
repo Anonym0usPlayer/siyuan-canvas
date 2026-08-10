@@ -74,6 +74,11 @@ function normalizeWorkspaceCanvasPath(input: string, baseDirectory: string): str
     return ""
   }
 
+  if (/^[a-zA-Z]:[/\\]/.test(trimmed) || /^[/\\]+[a-zA-Z]:/.test(trimmed) || trimmed.startsWith('file://')) {
+    const cleaned = trimmed.replace(/^[/\\]+([a-zA-Z]:)/, '$1')
+    return cleaned.endsWith(".canvas") ? cleaned : `${cleaned}.canvas`
+  }
+
   const normalized = trimmed.endsWith(".canvas") ? trimmed : `${trimmed}.canvas`
   return normalized.startsWith("/") ? normalized : `${baseDirectory}/${normalized}`
 }

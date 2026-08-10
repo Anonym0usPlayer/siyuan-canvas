@@ -152,7 +152,8 @@ export function useCanvasEditor(
     imageSrc?: string
     thumbnail?: CanvasFileTargetPreview["thumbnail"]
   }>>({})
-  const fileSource = ref<CanvasEditorFileSource>(bootstrap.path ? "workspace" : "unsaved")
+  const isBootstrapLocal = bootstrap.path ? (/^[a-zA-Z]:[/\\]/.test(bootstrap.path) || /^[/\\]+[a-zA-Z]:/.test(bootstrap.path) || bootstrap.path.startsWith("file://")) : false
+  const fileSource = ref<CanvasEditorFileSource>(bootstrap.path ? (isBootstrapLocal ? "local" : "workspace") : "unsaved")
   const stageRef = ref<HTMLElement>()
   const searchDecorations = ref<CanvasSearchDecoration[]>([])
   const recentFiles = ref<CanvasRecentFile[]>([])
