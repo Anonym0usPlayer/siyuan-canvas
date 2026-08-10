@@ -3,8 +3,10 @@ import type { ResolvedCanvasFileTarget } from '@/canvas/file-target-resolution'
 import type { CanvasI18nTranslator, CanvasPluginBridge } from '@/canvas/use-canvas-editor-shared'
 
 import { openTab, showMessage } from 'siyuan'
+import { openExternalFile } from '@/canvas/open-external-file'
 
 interface CanvasEditorNodeActivationOptions {
+  currentCanvasFilePath?: () => string
   ensureCanvasPath: (input: string) => string
   getResolvedFileNode: (node: Extract<CanvasNode, { type: 'file' }>) => ResolvedCanvasFileTarget & {
     detail: string
@@ -16,6 +18,7 @@ interface CanvasEditorNodeActivationOptions {
 
 export function createCanvasEditorNodeActivationActions(options: CanvasEditorNodeActivationOptions) {
   const {
+    currentCanvasFilePath,
     ensureCanvasPath,
     getResolvedFileNode,
     openDocumentByBlockId,
@@ -25,7 +28,13 @@ export function createCanvasEditorNodeActivationActions(options: CanvasEditorNod
 
   function activateNode(node: CanvasNode) {
     if (node.type === 'link') {
-      window.open(node.url, '_blank', 'noopener,noreferrer')
+      if (node.url.startsWith('file://')) {
+        void openExternalFile(node.url, {
+          currentCanvasFilePath: currentCanvasFilePath?.(),
+        })
+      } else {
+        window.open(node.url, '_blank', 'noopener,noreferrer')
+      }
       showMessage(t('nodeActivated', { title: node.url }), 2000, 'info')
       return
     }
@@ -74,6 +83,19 @@ export function createCanvasEditorNodeActivationActions(options: CanvasEditorNod
           openNewTab: true,
         })
         showMessage(t('nodeActivated', { title: resolved.detail || resolved.title }), 2000, 'info')
+        return
+      }
+
+      if (resolved.kind === 'file') {
+        void openExternalFile(resolved.path, {
+          currentCanvasFilePath: currentCanvasFilePath?.(),
+        }).then((openResult) => {
+          if (openResult.success) {
+            showMessage(t('nodeActivated', { title: resolved.detail || resolved.title }), 2000, 'info')
+          } else if (openResult.error) {
+            showMessage(openResult.error, 4000, 'error')
+          }
+        })
       }
     }
   }

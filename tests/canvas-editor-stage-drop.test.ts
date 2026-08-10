@@ -245,6 +245,23 @@ describe('canvas editor stage drop', () => {
     expect(selectNode).toHaveBeenCalledWith(node.id)
   })
 
+  it('creates file node with recorded file path when dropping non-image external files from OS Explorer', async () => {
+    const { committed, harness, selectNode } = createStageDropHarness()
+    const pdfFile = new File(['pdf content'], 'report.pdf', { type: 'application/pdf' })
+    Object.defineProperty(pdfFile, 'path', { value: 'C:\\Users\\Admin\\Desktop\\report.pdf' })
+    const event = createFileDropEvent([pdfFile], 400, 300)
+
+    await harness.handleStageDrop(event)
+
+    expect(event.preventDefault).toHaveBeenCalled()
+    expect(committed).toHaveLength(1)
+    const node = committed[0].nodes.find((n: any) => n.type === 'file')!
+    expect(node.file).toBe('C:\\Users\\Admin\\Desktop\\report.pdf')
+    expect(node.width).toBe(320)
+    expect(node.height).toBe(160)
+    expect(selectNode).toHaveBeenCalledWith(node.id)
+  })
+
   it('automatically connects the newly dropped file node to the source query node with direction-based anchors', async () => {
     const { committed, harness, state } = createStageDropHarness()
 

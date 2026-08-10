@@ -9,6 +9,7 @@ import { putFile } from '@/api'
 import { upsertCanvasNode, upsertCanvasEdge, createCanvasId } from '@/canvas/document'
 import { createFileNodeAtViewport } from '@/canvas/use-canvas-editor-file-picker'
 import { writeWorkspaceImageFile } from '@/canvas/workspace-image-files'
+import { getDroppedFilePath } from '@/canvas/open-external-file'
 
 const SIYUAN_DROP_FILE = 'application/siyuan-file'
 const SIYUAN_DROP_GUTTER = 'application/siyuan-gutter'
@@ -110,47 +111,7 @@ export function createCanvasEditorStageDropActions(options: CanvasEditorStageDro
         newNodes.push(node)
 
         if (dragSourceNodeId) {
-          const sourceNode = currentDoc.nodes.find(n => n.id === dragSourceNodeId)
-          if (sourceNode) {
-            const fromCenterX = sourceNode.x + sourceNode.width / 2
-            const fromCenterY = sourceNode.y + sourceNode.height / 2
-            const toCenterX = node.x + node.width / 2
-            const toCenterY = node.y + node.height / 2
-
-            const deltaX = toCenterX - fromCenterX
-            const deltaY = toCenterY - fromCenterY
-
-            let fromSide: 'bottom' | 'left' | 'right' | 'top' = 'right'
-            let toSide: 'bottom' | 'left' | 'right' | 'top' = 'left'
-
-            if (Math.abs(deltaX) >= Math.abs(deltaY)) {
-              if (deltaX >= 0) {
-                fromSide = 'right'
-                toSide = 'left'
-              } else {
-                fromSide = 'left'
-                toSide = 'right'
-              }
-            } else {
-              if (deltaY >= 0) {
-                fromSide = 'bottom'
-                toSide = 'top'
-              } else {
-                fromSide = 'top'
-                toSide = 'bottom'
-              }
-            }
-
-            const edge = {
-              id: createCanvasId('edge-'),
-              fromNode: sourceNode.id,
-              fromSide,
-              toNode: node.id,
-              toSide,
-              endArrow: true,
-            }
-            currentDoc = upsertCanvasEdge(currentDoc, edge)
-          }
+          currentDoc = autoConnectSourceEdge(currentDoc, dragSourceNodeId, node)
         }
 
         if (i === ids.length - 1)
@@ -162,11 +123,9 @@ export function createCanvasEditorStageDropActions(options: CanvasEditorStageDro
       return
     }
 
-    // 3. 如果不是思源原生的拖拽，再检测是否有外部图片文件被拖入
+    // 3. 如果不是思源原生的拖拽，处理外部拖拽进入的文件（支持图片及各种本地文件）
     const files = event.dataTransfer?.files ? Array.from(event.dataTransfer.files) : []
-    const imageFiles = files.filter(f => f.type.startsWith('image/') || /\.(avif|bmp|gif|jpe?g|png|svg|webp)(?:$|[?#])/i.test(f.name))
-
-    if (imageFiles.length > 0) {
+    if (files.length > 0) {
       if (fileSource.value !== 'workspace' || !state.filePath.endsWith('.canvas')) {
         showMessage(t('messageUnableDropWithoutWorkspaceCanvas'), 4000, 'warning')
         return
@@ -179,32 +138,63 @@ export function createCanvasEditorStageDropActions(options: CanvasEditorStageDro
       const stageX = event.clientX - rect.left
       const stageY = event.clientY - rect.top
 
+      const dragSourceNodeId = event.dataTransfer?.getData('application/siyuan-canvas-drag-source-node-id') ?? ''
       const verticalGap = 260 * viewport.scale
-      const startY = stageY - ((imageFiles.length - 1) * verticalGap) / 2
+      const startY = stageY - ((files.length - 1) * verticalGap) / 2
 
-      for (let i = 0; i < imageFiles.length; i++) {
-        const file = imageFiles[i]
-        try {
-          const imagePath = await writeWorkspaceImageFile(state.filePath, file, putFile)
+      let currentDoc = state.document
+      const createdNodes: any[] = []
 
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const isImage = file.type.startsWith('image/') || /\.(avif|bmp|gif|jpe?g|png|svg|webp)(?:$|[?#])/i.test(file.name)
+
+        if (isImage) {
+          try {
+            const imagePath = await writeWorkspaceImageFile(state.filePath, file, putFile)
+
+            const node = createFileNodeAtViewport(
+              board.value,
+              viewport,
+              { x: stageX, y: startY + i * verticalGap },
+            )
+            node.file = imagePath
+            node.width = 320
+            node.height = 240
+
+            currentDoc = upsertCanvasNode(currentDoc, node)
+            if (dragSourceNodeId) {
+              currentDoc = autoConnectSourceEdge(currentDoc, dragSourceNodeId, node)
+            }
+            createdNodes.push(node)
+          } catch (error) {
+            console.error('Failed to upload drop image file', error)
+          }
+        } else {
+          const filePath = getDroppedFilePath(file)
           const node = createFileNodeAtViewport(
             board.value,
             viewport,
             { x: stageX, y: startY + i * verticalGap },
           )
-          node.file = imagePath
+          node.file = filePath
           node.width = 320
-          node.height = 240
+          node.height = 160
+          node.x -= node.width / 2
+          node.y -= node.height / 2
 
-          commitDocument(upsertCanvasNode(state.document, node))
-          if (i === imageFiles.length - 1)
-            selectNode(node.id)
-        } catch (error) {
-          console.error('Failed to upload drop image file', error)
+          currentDoc = upsertCanvasNode(currentDoc, node)
+          if (dragSourceNodeId) {
+            currentDoc = autoConnectSourceEdge(currentDoc, dragSourceNodeId, node)
+          }
+          createdNodes.push(node)
         }
       }
 
-      // 图片为静态资源，直接匹配路径后缀展示，无需立即向思源的 SQLite 数据库查询刷新元数据，避免并发数据库锁定冲突
+      if (createdNodes.length > 0) {
+        commitDocument(currentDoc)
+        selectNode(createdNodes[createdNodes.length - 1].id)
+      }
       return
     }
   }
@@ -213,4 +203,49 @@ export function createCanvasEditorStageDropActions(options: CanvasEditorStageDro
     handleStageDragOver,
     handleStageDrop,
   }
+}
+
+function autoConnectSourceEdge(doc: ReturnType<typeof upsertCanvasNode>, sourceNodeId: string, targetNode: any) {
+  const sourceNode = doc.nodes.find(n => n.id === sourceNodeId)
+  if (!sourceNode)
+    return doc
+
+  const fromCenterX = sourceNode.x + sourceNode.width / 2
+  const fromCenterY = sourceNode.y + sourceNode.height / 2
+  const toCenterX = targetNode.x + targetNode.width / 2
+  const toCenterY = targetNode.y + targetNode.height / 2
+
+  const deltaX = toCenterX - fromCenterX
+  const deltaY = toCenterY - fromCenterY
+
+  let fromSide: 'bottom' | 'left' | 'right' | 'top' = 'right'
+  let toSide: 'bottom' | 'left' | 'right' | 'top' = 'left'
+
+  if (Math.abs(deltaX) >= Math.abs(deltaY)) {
+    if (deltaX >= 0) {
+      fromSide = 'right'
+      toSide = 'left'
+    } else {
+      fromSide = 'left'
+      toSide = 'right'
+    }
+  } else {
+    if (deltaY >= 0) {
+      fromSide = 'bottom'
+      toSide = 'top'
+    } else {
+      fromSide = 'top'
+      toSide = 'bottom'
+    }
+  }
+
+  const edge = {
+    id: createCanvasId('edge-'),
+    fromNode: sourceNode.id,
+    fromSide,
+    toNode: targetNode.id,
+    toSide,
+    endArrow: true,
+  }
+  return upsertCanvasEdge(doc, edge)
 }

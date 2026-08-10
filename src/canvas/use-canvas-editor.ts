@@ -1139,6 +1139,7 @@ export function useCanvasEditor(
   }
 
   const { activateNode } = createCanvasEditorNodeActivationActions({
+    currentCanvasFilePath: () => state.filePath,
     ensureCanvasPath,
     getResolvedFileNode,
     openDocumentByBlockId: openDocumentAtBlock,

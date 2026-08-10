@@ -60,63 +60,83 @@ function toImageSource(target: PreviewInput): string | undefined {
   return undefined
 }
 
+function getFileBadge(target: PreviewInput): string {
+  const pathStr = ('path' in target && typeof target.path === 'string') ? target.path : ''
+  if (!pathStr)
+    return 'FILE'
+
+  const cleanPath = pathStr.split(/[?#]/)[0]
+  const segments = cleanPath.split(/[/\\]/)
+  const fileName = segments[segments.length - 1] || ''
+
+  const dotIndex = fileName.lastIndexOf('.')
+  if (dotIndex > 0 && dotIndex < fileName.length - 1) {
+    const ext = fileName.substring(dotIndex + 1).trim()
+    if (ext && ext.length <= 8) {
+      return ext.toUpperCase()
+    }
+  }
+
+  return 'FILE'
+}
+
 export function createCanvasFileTargetPreview(target: PreviewInput): CanvasFileTargetPreview {
   switch (target.kind) {
-    case "block":
+    case 'block':
       return {
-        badge: "Block",
-        clampMode: "viewport",
-        detail: "hpath" in target ? target.hpath || target.path : target.path,
+        badge: 'Block',
+        clampMode: 'viewport',
+        detail: 'hpath' in target ? target.hpath || target.path : target.path,
         headline: target.title,
-        helper: "Opens block in SiYuan",
+        helper: 'Opens block in SiYuan',
         imageSrc: toImageSource(target),
-        kind: "block",
-        previewHtml: target.excerptHtml || "",
+        kind: 'block',
+        previewHtml: target.excerptHtml || '',
       }
-    case "document":
+    case 'document':
       return {
-        badge: "Document",
-        clampMode: "viewport",
-        detail: "hpath" in target ? target.hpath || target.path : target.path,
+        badge: 'Document',
+        clampMode: 'viewport',
+        detail: 'hpath' in target ? target.hpath || target.path : target.path,
         headline: target.title,
-        helper: "Opens in SiYuan",
-        kind: "document",
-        previewHtml: target.excerptHtml || "",
+        helper: 'Opens in SiYuan',
+        kind: 'document',
+        previewHtml: target.excerptHtml || '',
       }
-    case "canvas":
+    case 'canvas':
       return {
-        badge: "Canvas",
+        badge: 'Canvas',
         detail: target.path,
         headline: target.title,
-        helper: "Opens nested canvas",
-        kind: "canvas",
+        helper: 'Opens nested canvas',
+        kind: 'canvas',
         thumbnail: target.thumbnail,
       }
-    case "image":
+    case 'image':
       return {
-        badge: "Image",
+        badge: 'Image',
         detail: target.path,
         headline: target.title,
-        helper: "Image file",
+        helper: 'Image file',
         imageSrc: toImageSource(target),
-        kind: "image",
+        kind: 'image',
       }
-    case "asset":
+    case 'asset':
       return {
-        badge: "Image Asset",
-        detail: "description" in target ? target.description : target.path,
+        badge: 'Image Asset',
+        detail: 'description' in target ? target.description : target.path,
         headline: target.title,
-        helper: "Opens in asset viewer",
+        helper: 'Opens in asset viewer',
         imageSrc: toImageSource(target),
-        kind: "image",
+        kind: 'image',
       }
     default:
       return {
-        badge: "File",
-        detail: "description" in target ? target.description : target.path,
+        badge: getFileBadge(target),
+        detail: 'description' in target ? target.description : target.path,
         headline: target.title,
-        helper: "Unresolved path",
-        kind: "file",
+        helper: 'Double click to open',
+        kind: 'file',
       }
   }
 }
