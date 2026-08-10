@@ -854,7 +854,11 @@
                 data-testid="node-resize-corner"
                 type="button"
                 @pointerdown.stop.prevent="editor.startCornerResize(node, $event)"
-              />
+              >
+                <svg class="resize-grip-icon" viewBox="0 0 10 10" width="10" height="10">
+                  <path d="M8 2 L2 8 M9 5 L5 9 M9 8 L8 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" fill="none" />
+                </svg>
+              </button>
             </template>
           </article>
 

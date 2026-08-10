@@ -2357,22 +2357,33 @@
 .canvas-node__resize-corner {
   position: absolute;
   z-index: 2;
-  right: 10px;
-  bottom: 10px;
-  width: 16px;
-  height: 16px;
+  right: 4px;
+  bottom: 4px;
+  width: 18px;
+  height: 18px;
   border: 0;
-  border-radius: 4px;
-  background: var(--canvas-resize-handle);
+  background: transparent;
   cursor: nwse-resize;
   opacity: 0;
-  transition:
-    opacity 0.16s ease,
-    background 0.16s ease;
-}
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 3px;
+  box-sizing: border-box;
+  transition: opacity 0.16s ease;
 
-.canvas-node__resize-corner:hover {
-  background: var(--canvas-resize-handle-hover);
+  .resize-grip-icon {
+    color: var(--b3-theme-on-surface, var(--canvas-text-muted));
+    opacity: 0.4;
+    transition: opacity 0.15s ease, color 0.15s ease;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  &:hover .resize-grip-icon {
+    opacity: 0.9;
+    color: var(--b3-theme-primary, var(--canvas-accent));
+  }
 }
 
 .inspector {
