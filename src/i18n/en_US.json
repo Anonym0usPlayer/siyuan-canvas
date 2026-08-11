@@ -394,5 +394,7 @@
   "aiSearchDialogHint": "Enter exploration direction or specific requirements (optional), or confirm directly for default exploration:",
   "aiSearchDialogPlaceholder": "e.g. Core concept breakdown, potential risks, implementation steps...",
   "aiSearchDialogConfirm": "Start Explore",
-  "aiSearchDialogCancel": "Cancel"
+  "aiSearchDialogCancel": "Cancel",
+  "canvasFileNotFound": "Canvas file not found",
+  "cannotOpenExternalCanvasFile": "Cannot open canvas file outside the workspace"
 }

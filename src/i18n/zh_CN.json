@@ -394,5 +394,7 @@
   "aiSearchDialogHint": "请输入探索方向或具体要求（可选），直接确认将按默认规则发散：",
   "aiSearchDialogPlaceholder": "例如：核心概念推演、潜在风险分析、下一步实施方案等...",
   "aiSearchDialogConfirm": "开始探索",
-  "aiSearchDialogCancel": "取消"
+  "aiSearchDialogCancel": "取消",
+  "canvasFileNotFound": "画布文件不存在",
+  "cannotOpenExternalCanvasFile": "无法打开工作区外的画布文件"
 }

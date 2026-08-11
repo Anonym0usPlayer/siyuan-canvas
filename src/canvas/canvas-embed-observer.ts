@@ -15,6 +15,7 @@ import {
 import { generateCanvasEmbedDataUrl } from "@/canvas/canvas-embed-preview"
 import { parseCanvasDocument } from "@/canvas/format"
 import { openCanvasEditorTab } from "@/canvas/plugin-tabs"
+import { handleCanvasLinkClick, isCanvasLinkClick } from "@/canvas/canvas-link-observer"
 
 let observer: MutationObserver | null = null
 let refreshListener: ((event: Event) => void) | null = null
@@ -528,6 +529,10 @@ export function startCanvasEmbedObserver(plugin: Plugin, pluginName: string, opt
   }
   window.addEventListener(CANVAS_EMBED_REFRESH_EVENT, refreshListener)
   delegatedClickListener = (event: Event) => {
+    if (isCanvasLinkClick(event)) {
+      void handleCanvasLinkClick(event, plugin, pluginName)
+      return
+    }
     void openCanvasFromClickedImage(event, plugin, pluginName)
   }
   document.addEventListener("click", delegatedClickListener, true)
