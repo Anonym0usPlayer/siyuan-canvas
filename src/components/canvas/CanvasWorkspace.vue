@@ -2510,7 +2510,7 @@ const isAiSearchButtonVisible = computed(() => {
   if (!node) {
     return false
   }
-  return node.type === "text" || node.type === "file"
+  return node.type === "text"
 })
 
 async function handleAiSearch() {
@@ -2520,7 +2520,7 @@ async function handleAiSearch() {
   if (!selectedId) return
 
   const targetNode = editor.state.document.nodes.find(n => n.id === selectedId)
-  if (!targetNode || (targetNode.type !== "text" && targetNode.type !== "file")) return
+  if (!targetNode || targetNode.type !== "text") return
 
   const promptInput = await openAiSearchPromptDialog({
     title: t("aiSearchDialogTitle") || "AI 探索",

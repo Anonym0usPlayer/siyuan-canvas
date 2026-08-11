@@ -1843,6 +1843,8 @@ describe("CanvasWorkspace", () => {
 
     expect(wrapper.find("[data-testid='selection-toolbar-refresh']").exists()).toBe(true)
     expect(wrapper.find("[data-testid='selection-toolbar-refresh']").attributes("data-tooltip")).toBe("刷新")
+    expect(wrapper.find("[data-testid='selection-toolbar-ai-search']").exists()).toBe(false)
+    expect(wrapper.find("[data-testid='selection-toolbar-convert-to-text']").exists()).toBe(false)
 
     await wrapper.find("[data-testid='selection-toolbar-refresh']").trigger("click")
 

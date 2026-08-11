@@ -320,13 +320,7 @@ export function useCanvasEditor(
       return node?.type === 'text'
     })
   })
-  const canConvertSelectionToText = computed(() => {
-    if (state.selectedNodeIds.length === 0) return false
-    return state.selectedNodeIds.every(id => {
-      const node = state.document.nodes.find(n => n.id === id)
-      return node?.type === 'file'
-    })
-  })
+  const canConvertSelectionToText = computed(() => false)
   const selectedEdge = computed(
     () => state.document.edges.find((edge) => edge.id === state.selectedEdgeId) || null,
   )
@@ -603,7 +597,7 @@ export function useCanvasEditor(
   }
 
   async function convertSelectionToText() {
-    if (!canConvertSelectionToText.value) return
+    if (state.selectedNodeIds.length === 0) return
     return selectionExport.convertSelectionToText(state.selectedNodeIds)
   }
 
