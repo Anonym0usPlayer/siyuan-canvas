@@ -2855,7 +2855,6 @@ const sproutPopoverStyle = computed(() => {
   const bounds = editor.selectionBounds
   const viewport = editor.viewport
   const board = editor.board
-  console.log("[Sprout] style bounds & board:", { bounds, board, viewport })
   if (!bounds || !board) {
     return { display: "none" }
   }
@@ -2867,7 +2866,6 @@ const sproutPopoverStyle = computed(() => {
     width: bounds.width * viewport.scale,
     height: bounds.height * viewport.scale,
   }
-  console.log("[Sprout] style rect computed:", rect)
 
   // 菜单的高度和宽度
   const popoverWidth = 300
@@ -2885,7 +2883,6 @@ const sproutPopoverStyle = computed(() => {
     height: `${popoverHeight}px`,
     zIndex: 1000,
   }
-  console.log("[Sprout] final style:", style)
   return style
 })
 const dragSourcePath = ref<string | null>(null)

@@ -843,4 +843,34 @@ describe("canvas plugin lifecycle", () => {
       },
     })
   })
+
+  it("only logs AI config update from api-switch when enableDebugLog is true", async () => {
+    const plugin = new SiyuanCanvasPlugin()
+    let registerCallback: ((config: any) => void) | null = null
+
+    ;(window as any).siyuanApiSwitch = {
+      register: vi.fn((_id: string, _title: string, callback: (config: any) => void) => {
+        registerCallback = callback
+      }),
+    }
+
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {})
+
+    // Default enableDebugLog is false
+    plugin.registerToApiSwitch()
+    expect(registerCallback).not.toBeNull()
+
+    const mockConfig = { profileId: "prof_test", profileName: "Test" }
+    registerCallback!(mockConfig)
+    expect(plugin.activeAiConfig.value).toEqual(mockConfig)
+    expect(consoleLogSpy).not.toHaveBeenCalled()
+
+    // Enable debug log
+    await plugin.updateCanvasSettings({ enableDebugLog: true })
+    registerCallback!(mockConfig)
+    expect(consoleLogSpy).toHaveBeenCalledWith("[siyuan-canvas] AI Config updated by api-switch:", mockConfig)
+
+    consoleLogSpy.mockRestore()
+    delete (window as any).siyuanApiSwitch
+  })
 })
