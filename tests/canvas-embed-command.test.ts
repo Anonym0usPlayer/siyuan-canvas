@@ -32,6 +32,12 @@ describe("canvas embed command", () => {
       .resolves.toBe("D:\\Other\\a.canvas")
   })
 
+  it("safely handles null, undefined, or empty path inputs", async () => {
+    await expect(normalizeCanvasEmbedPath(null)).resolves.toBe("")
+    await expect(normalizeCanvasEmbedPath(undefined)).resolves.toBe("")
+    await expect(normalizeCanvasEmbedPath("")).resolves.toBe("")
+  })
+
   it("resolves target document id from command protyle before fallbacks", () => {
     const lastActive = protyle("last-root")
     const editor = protyle("editor-root")

@@ -324,6 +324,9 @@ export default class SiyuanCanvasPlugin extends Plugin {
       title: this.t("insertCanvasEmbedPrompt"),
       defaultDirectory: this.canvasData.settings.defaultCanvasDirectory,
     })
+    if (!path) {
+      return
+    }
     const blockId = await runCanvasEmbedCommand({
       canvasPath: path,
       commandProtyle: protyle,

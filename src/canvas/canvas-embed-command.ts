@@ -14,7 +14,7 @@ export interface CanvasEmbedTargetOptions {
 }
 
 export interface RunCanvasEmbedCommandOptions extends CanvasEmbedTargetOptions {
-  canvasPath: string
+  canvasPath?: string | null
   debugLog: (message: string, payload: Record<string, unknown>) => void
   getFileText: (path: string) => Promise<string>
   getWorkspaceDir: () => Promise<string | undefined>
@@ -28,9 +28,12 @@ export interface RunCanvasEmbedCommandOptions extends CanvasEmbedTargetOptions {
 }
 
 export async function normalizeCanvasEmbedPath(
-  path: string,
-  getWorkspaceDir: () => Promise<string | undefined>,
+  path?: string | null,
+  getWorkspaceDir?: () => Promise<string | undefined>,
 ): Promise<string> {
+  if (!path || typeof path !== "string") {
+    return ""
+  }
   let canvasPath = path.trim().replace(/^["']|["']$/g, '')
   if (!canvasPath) {
     return ""
