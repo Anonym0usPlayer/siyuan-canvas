@@ -320,6 +320,7 @@
   "commandPaletteNoResults": "No matches",
   "commandPaletteOpen": "Command palette (Ctrl+K)",
   "insertCanvasEmbed": "Insert Canvas preview",
+  "insertCanvasEmbedSlash": "Canvas: Insert Canvas preview",
   "insertCanvasEmbedPrompt": "Enter canvas file path",
   "insertCanvasEmbedSuccess": "Canvas preview inserted",
   "insertCanvasEmbedFailed": "Failed to insert canvas preview",

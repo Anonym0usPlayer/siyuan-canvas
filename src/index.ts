@@ -167,6 +167,28 @@ export default class SiyuanCanvasPlugin extends Plugin {
       },
     })
 
+    this.protyleSlash = [
+      {
+        filter: [
+          "insertCanvasEmbed",
+          "插入 Canvas 预览",
+          "无界：插入 Canvas 预览",
+          "charucanvas",
+          "cr",
+          "canvas",
+          "preview",
+          "wj",
+          "yulan",
+          "embed",
+        ],
+        html: `<div class="b3-list-item__first"><svg class="b3-list-item__graphic"><use xlink:href="#${CANVAS_TAB_ICON_ID}"></use></svg><span class="b3-list-item__text">${this.t("insertCanvasEmbedSlash")}</span></div>`,
+        id: "insertCanvasEmbed",
+        callback: (protyle: any, nodeElement: HTMLElement) => {
+          void this.insertCanvasEmbedFromCommand(protyle, nodeElement)
+        },
+      },
+    ]
+
     this.eventBus?.on?.("loaded-protyle-static", this.rememberActiveProtyle)
     this.eventBus?.on?.("loaded-protyle-dynamic", this.rememberActiveProtyle)
     this.eventBus?.on?.("switch-protyle", this.rememberActiveProtyle)
@@ -182,6 +204,7 @@ export default class SiyuanCanvasPlugin extends Plugin {
   }
 
   onunload() {
+    this.protyleSlash = []
     this.eventBus?.off?.("loaded-protyle-static", this.rememberActiveProtyle)
     this.eventBus?.off?.("loaded-protyle-dynamic", this.rememberActiveProtyle)
     this.eventBus?.off?.("switch-protyle", this.rememberActiveProtyle)
@@ -315,7 +338,7 @@ export default class SiyuanCanvasPlugin extends Plugin {
     })
   }
 
-  private async insertCanvasEmbedFromCommand(protyle?: IProtyle): Promise<void> {
+  private async insertCanvasEmbedFromCommand(protyle?: IProtyle, nodeElement?: HTMLElement): Promise<void> {
     const pickerResult = await openCanvasFilePickerDialog({
       cancelLabel: this.t("dialogCancel"),
       confirmLabel: this.t("dialogConfirm"),
@@ -333,6 +356,8 @@ export default class SiyuanCanvasPlugin extends Plugin {
       canvasPath: path,
       mode,
       commandProtyle: protyle,
+      targetNodeElement: nodeElement,
+      targetBlockId: nodeElement?.getAttribute?.("data-node-id") || undefined,
       debugLog: (message, payload) => this.debugInsertCanvasEmbed(message, payload),
       getAllEditor: () => getAllEditor?.() ?? [],
       getFileText,

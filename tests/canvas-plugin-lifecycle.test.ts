@@ -96,6 +96,7 @@ class DialogMock {
 class PluginMock {
   public app = {}
   public commands: any[] = []
+  public protyleSlash: any[] = []
   public eventBus = {
     emit(type: string, detail?: unknown) {
       for (const handler of eventBusHandlers.get(type) || []) {
@@ -872,5 +873,130 @@ describe("canvas plugin lifecycle", () => {
 
     consoleLogSpy.mockRestore()
     delete (window as any).siyuanApiSwitch
+  })
+
+  it("registers protyleSlash menu item for inserting canvas embed and cleans up on onunload", async () => {
+    const plugin = new SiyuanCanvasPlugin()
+    await plugin.onload()
+
+    expect(plugin.protyleSlash).toHaveLength(1)
+    const slashItem = plugin.protyleSlash[0]
+    expect(slashItem.id).toBe("insertCanvasEmbed")
+    expect(slashItem.filter).toContain("insertCanvasEmbed")
+    expect(slashItem.filter).toContain("插入 Canvas 预览")
+    expect(slashItem.filter).toContain("无界：插入 Canvas 预览")
+    expect(slashItem.filter).toContain("canvas")
+    expect(slashItem.html).toContain("iconCanvasTab")
+    expect(slashItem.html).toContain("无界：插入 Canvas 预览")
+
+    // Test callback execution
+    const canvasRaw = JSON.stringify({
+      edges: [],
+      nodes: [
+        {
+          height: 120,
+          id: "node-1",
+          text: "测试卡片",
+          type: "text",
+          width: 180,
+          x: 0,
+          y: 0,
+        },
+      ],
+    })
+
+    const docEl = document.createElement("div")
+    docEl.className = "protyle-wysiwyg"
+    docEl.setAttribute("data-node-id", "doc-slash-test")
+    const nodeEl = document.createElement("div")
+    nodeEl.setAttribute("data-node-id", "slash-block-1")
+    nodeEl.setAttribute("data-type", "NodeParagraph")
+    docEl.appendChild(nodeEl)
+    document.body.appendChild(docEl)
+
+    dialogResponses.push({ action: "confirm", value: "/data/storage/siyuan-canvas/slash-demo.canvas" })
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : (input as Request).url || String(input)
+      if (url.includes("/api/asset/upload")) {
+        return new Response(JSON.stringify({
+          code: 0,
+          data: {
+            errFiles: [],
+            succMap: {
+              "slash-demo.svg": "assets/slash-demo-preview.svg",
+            },
+          },
+        }), { status: 200 })
+      }
+      return new Response(canvasRaw, { status: 200 })
+    })
+    fetchSyncPost.mockImplementation(async (url: string, data: { path?: string }) => {
+      if (url === "/api/file/readDir") {
+        return []
+      }
+      if (url === "/api/system/getConf") {
+        return {
+          code: 0,
+          data: {
+            conf: {
+              system: {
+                workspaceDir: "/data",
+              },
+            },
+          },
+        }
+      }
+      if (url === "/api/asset/upload") {
+        return {
+          code: 0,
+          data: {
+            errFiles: [],
+            succMap: {
+              "slash-demo.svg": "assets/slash-demo-preview.svg",
+            },
+          },
+        }
+      }
+      if (url === "/api/block/insertBlock") {
+        return {
+          code: 0,
+          data: [
+            {
+              doOperations: [
+                { id: "preview-block-id" },
+              ],
+            },
+          ],
+        }
+      }
+      if (url === "/api/attr/setBlockAttrs") {
+        return { code: 0, data: null }
+      }
+      throw new Error(`Unexpected request ${url} ${JSON.stringify(data)}`)
+    })
+
+    const mockProtyle = {
+      block: { rootID: "doc-slash-test", id: "slash-block-1" },
+      element: docEl,
+    } as any
+
+    await slashItem.callback(mockProtyle, nodeEl)
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(fetchSyncPost).toHaveBeenCalledWith("/api/block/insertBlock", expect.objectContaining({
+      data: '![slash-demo](assets/slash-demo-preview.svg "slash-demo")',
+      dataType: "markdown",
+      parentID: "doc-slash-test",
+      previousID: "slash-block-1",
+    }))
+    expect(fetchSyncPost).toHaveBeenCalledWith("/api/attr/setBlockAttrs", {
+      attrs: { "custom-canvas-path": "/data/storage/siyuan-canvas/slash-demo.canvas" },
+      id: "preview-block-id",
+    })
+    expect(showMessage).toHaveBeenCalledWith("已插入 Canvas 预览", 3000)
+
+    // Unload clears protyleSlash
+    plugin.onunload()
+    expect(plugin.protyleSlash).toEqual([])
   })
 })

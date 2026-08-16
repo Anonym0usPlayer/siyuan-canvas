@@ -220,4 +220,27 @@ describe("canvas embed command", () => {
     expect(blockId).toBeUndefined()
     expect(showMessage).toHaveBeenCalledWith("link failed", 4000, "error")
   })
+
+  it("prioritizes targetNodeElement and targetBlockId when resolving target location", () => {
+    document.body.innerHTML = `
+      <div class="protyle-wysiwyg" data-node-id="doc-target" data-type="NodeDocument">
+        <div data-node-id="block-slash-node" data-type="NodeParagraph">Slash trigger</div>
+      </div>
+    `
+    const nodeEl = document.querySelector("[data-node-id='block-slash-node']") as HTMLElement
+
+    const locationFromElement = resolveCanvasEmbedTargetLocation({
+      commandProtyle: null,
+      targetNodeElement: nodeEl,
+    })
+    expect(locationFromElement.docId).toBe("doc-target")
+    expect(locationFromElement.previousBlockId).toBe("block-slash-node")
+
+    const locationFromBlockId = resolveCanvasEmbedTargetLocation({
+      commandProtyle: protyle("doc-target"),
+      targetBlockId: "explicit-block-id",
+    })
+    expect(locationFromBlockId.docId).toBe("doc-target")
+    expect(locationFromBlockId.previousBlockId).toBe("explicit-block-id")
+  })
 })

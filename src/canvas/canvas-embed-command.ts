@@ -13,6 +13,8 @@ export interface CanvasEmbedTargetOptions {
   commandProtyle?: IProtyle | null
   getAllEditor?: () => Array<{ protyle?: IProtyle | null }>
   lastActiveProtyle?: IProtyle | null
+  targetBlockId?: string | null
+  targetNodeElement?: HTMLElement | null
 }
 
 export interface CanvasEmbedTargetLocation {
@@ -91,6 +93,14 @@ export function resolveCanvasEmbedTargetDocumentId(options: CanvasEmbedTargetOpt
     return fromCommand
   }
 
+  if (options.targetNodeElement) {
+    const wysiwygDoc = options.targetNodeElement.closest<HTMLElement>(".protyle-wysiwyg[data-node-id]")
+    const rootId = wysiwygDoc?.getAttribute("data-node-id")
+    if (rootId) {
+      return rootId
+    }
+  }
+
   const fromLastActive = getProtyleRootId(options.lastActiveProtyle)
   if (fromLastActive) {
     return fromLastActive
@@ -114,9 +124,16 @@ export function resolveCanvasEmbedTargetDocumentId(options: CanvasEmbedTargetOpt
 }
 
 export function resolveCanvasEmbedTargetLocation(options: CanvasEmbedTargetOptions): CanvasEmbedTargetLocation {
-  let previousBlockId: string | undefined
+  let previousBlockId: string | undefined = options.targetBlockId || undefined
 
-  if (typeof window !== "undefined" && typeof document !== "undefined") {
+  if (!previousBlockId && options.targetNodeElement) {
+    const blockId = options.targetNodeElement.getAttribute("data-node-id")
+    if (blockId && options.targetNodeElement.getAttribute("data-type") !== "NodeDocument") {
+      previousBlockId = blockId
+    }
+  }
+
+  if (!previousBlockId && typeof window !== "undefined" && typeof document !== "undefined") {
     const selection = window.getSelection?.()
     if (selection && selection.rangeCount > 0) {
       const anchorNode = selection.anchorNode
