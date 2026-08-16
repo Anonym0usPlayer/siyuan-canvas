@@ -185,6 +185,26 @@
 
 .canvas-file-picker__actions {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  justify-content: flex-end;
+}
+
+.canvas-file-picker__mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.canvas-file-picker__mode-label {
+  font-size: 12px;
+  color: var(--b3-theme-on-surface);
+}
+
+.canvas-file-picker__buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }

@@ -1,5 +1,6 @@
 import {
   appendBlock,
+  insertBlock,
   setBlockAttrs,
   upload,
   updateBlock,
@@ -13,6 +14,10 @@ export const CANVAS_PATH_ATTR = "custom-canvas-path"
 
 function escapeMarkdownImageAlt(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/]/g, "\\]")
+}
+
+function escapeMarkdownLinkText(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/\[/g, "\\[").replace(/]/g, "\\]")
 }
 
 function sanitizePreviewAssetName(value: string): string {
@@ -41,10 +46,23 @@ export function buildCanvasEmbedMarkdown(_canvasPath: string, imagePath: string,
   return `![${escapeMarkdownImageAlt(title)}](${imagePath} "${safeTitle}")`
 }
 
+export function buildCanvasLinkMarkdown(canvasPath: string, title?: string): string {
+  const fileName = title || canvasPath.replace(/^.*\//, "") || "canvas.canvas"
+  return `[${escapeMarkdownLinkText(fileName)}](${canvasPath})`
+}
+
 export interface InsertCanvasEmbedOptions {
   canvasPath: string
   canvasRaw: string
   parentBlockId: string
+  previousBlockId?: string
+  title?: string
+}
+
+export interface InsertCanvasLinkOptions {
+  canvasPath: string
+  parentBlockId: string
+  previousBlockId?: string
   title?: string
 }
 
@@ -53,6 +71,7 @@ export async function insertCanvasEmbed(options: InsertCanvasEmbedOptions): Prom
     canvasPath,
     canvasRaw,
     parentBlockId,
+    previousBlockId,
     title,
   } = options
 
@@ -73,7 +92,40 @@ export async function insertCanvasEmbed(options: InsertCanvasEmbedOptions): Prom
   }
   const markdown = buildCanvasEmbedMarkdown(canvasPath, imagePath, embedTitle)
 
-  const ops = await appendBlock("markdown", markdown, parentBlockId)
+  let ops = previousBlockId
+    ? await insertBlock("markdown", markdown, undefined, previousBlockId, parentBlockId)
+    : null
+  if (!ops || ops.length === 0) {
+    ops = await appendBlock("markdown", markdown, parentBlockId)
+  }
+  if (!ops || ops.length === 0) {
+    return null
+  }
+
+  const blockId = ops[0].doOperations?.[0]?.id as string | undefined
+  if (blockId) {
+    await setBlockAttrs(blockId, { [CANVAS_PATH_ATTR]: canvasPath })
+  }
+
+  return blockId ?? null
+}
+
+export async function insertCanvasLink(options: InsertCanvasLinkOptions): Promise<string | null> {
+  const {
+    canvasPath,
+    parentBlockId,
+    previousBlockId,
+    title,
+  } = options
+
+  const markdown = buildCanvasLinkMarkdown(canvasPath, title)
+
+  let ops = previousBlockId
+    ? await insertBlock("markdown", markdown, undefined, previousBlockId, parentBlockId)
+    : null
+  if (!ops || ops.length === 0) {
+    ops = await appendBlock("markdown", markdown, parentBlockId)
+  }
   if (!ops || ops.length === 0) {
     return null
   }

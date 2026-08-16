@@ -1,13 +1,21 @@
 import { Dialog } from "siyuan"
 import { readDir } from "@/api"
 
-interface CanvasFilePickerDialogOptions {
+export type CanvasFilePickerMode = "preview" | "link"
+
+export interface CanvasFilePickerResult {
+  path: string
+  mode: CanvasFilePickerMode
+}
+
+export interface CanvasFilePickerDialogOptions {
   cancelLabel: string
   confirmLabel: string
   noResultsLabel: string
   searchPlaceholder: string
   title: string
   defaultDirectory: string
+  insertLinkSwitchLabel?: string
 }
 
 interface CanvasFileEntry {
@@ -56,7 +64,7 @@ function buildListItem(entry: CanvasFileEntry, index: number, isActive: boolean)
   </div>`
 }
 
-export function openCanvasFilePickerDialog(options: CanvasFilePickerDialogOptions): Promise<string | null> {
+export function openCanvasFilePickerDialog(options: CanvasFilePickerDialogOptions): Promise<CanvasFilePickerResult | null> {
   return new Promise((resolve) => {
     let settled = false
     let allFiles: CanvasFileEntry[] = []
@@ -77,8 +85,18 @@ export function openCanvasFilePickerDialog(options: CanvasFilePickerDialogOption
             <div class="canvas-file-picker__loading">…</div>
           </div>
           <div class="canvas-file-picker__actions">
-            <button class="b3-button b3-button--outline" data-canvas-file-picker-cancel type="button">${escapeHtml(options.cancelLabel)}</button>
-            <button class="b3-button" data-canvas-file-picker-confirm type="button">${escapeHtml(options.confirmLabel)}</button>
+            <label class="canvas-file-picker__mode-toggle">
+              <input
+                class="b3-switch fn__flex-center"
+                data-canvas-file-picker-mode-switch
+                type="checkbox"
+              >
+              <span class="canvas-file-picker__mode-label">${escapeHtml(options.insertLinkSwitchLabel || "插入链接")}</span>
+            </label>
+            <div class="canvas-file-picker__buttons">
+              <button class="b3-button b3-button--outline" data-canvas-file-picker-cancel type="button">${escapeHtml(options.cancelLabel)}</button>
+              <button class="b3-button" data-canvas-file-picker-confirm type="button">${escapeHtml(options.confirmLabel)}</button>
+            </div>
           </div>
         </div>
       `,
@@ -96,8 +114,13 @@ export function openCanvasFilePickerDialog(options: CanvasFilePickerDialogOption
     const listEl = dialog.element.querySelector("[data-canvas-file-picker-list]") as HTMLElement | null
     const cancelButton = dialog.element.querySelector("[data-canvas-file-picker-cancel]") as HTMLButtonElement | null
     const confirmButton = dialog.element.querySelector("[data-canvas-file-picker-confirm]") as HTMLButtonElement | null
+    const modeSwitch = dialog.element.querySelector("[data-canvas-file-picker-mode-switch]") as HTMLInputElement | null
 
-    const close = (value: string | null) => {
+    const getMode = (): CanvasFilePickerMode => {
+      return modeSwitch?.checked ? "link" : "preview"
+    }
+
+    const close = (value: CanvasFilePickerResult | null) => {
       if (settled) {
         return
       }
@@ -141,10 +164,11 @@ export function openCanvasFilePickerDialog(options: CanvasFilePickerDialogOption
 
     function confirmSelection() {
       const trimmed = (input?.value ?? "").trim()
+      const mode = getMode()
       if (filteredFiles.length > 0 && filteredFiles[activeIndex]) {
-        close(filteredFiles[activeIndex].path)
+        close({ path: filteredFiles[activeIndex].path, mode })
       } else if (trimmed) {
-        close(trimmed)
+        close({ path: trimmed, mode })
       }
     }
 
@@ -165,26 +189,17 @@ export function openCanvasFilePickerDialog(options: CanvasFilePickerDialogOption
       if (event.key === "Escape") {
         event.preventDefault()
         close(null)
-        return
-      }
-
-      if (event.key === "ArrowDown") {
+      } else if (event.key === "ArrowDown") {
         event.preventDefault()
         activeIndex = Math.min(filteredFiles.length - 1, activeIndex + 1)
         renderList()
         scrollActiveIntoView()
-        return
-      }
-
-      if (event.key === "ArrowUp") {
+      } else if (event.key === "ArrowUp") {
         event.preventDefault()
         activeIndex = Math.max(0, activeIndex - 1)
         renderList()
         scrollActiveIntoView()
-        return
-      }
-
-      if (event.key === "Enter") {
+      } else if (event.key === "Enter") {
         event.preventDefault()
         confirmSelection()
       }
@@ -196,7 +211,7 @@ export function openCanvasFilePickerDialog(options: CanvasFilePickerDialogOption
 
       const index = Number(target.dataset.canvasFilePickerIndex)
       if (!Number.isNaN(index) && index >= 0 && index < filteredFiles.length) {
-        close(filteredFiles[index].path)
+        close({ path: filteredFiles[index].path, mode: getMode() })
       }
     })
 

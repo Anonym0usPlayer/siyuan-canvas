@@ -4,6 +4,8 @@ export interface CanvasEmbedCommandMessages {
   insertCanvasEmbedFailed: string
   insertCanvasEmbedNoDocument: string
   insertCanvasEmbedSuccess: string
+  insertCanvasLinkFailed: string
+  insertCanvasLinkSuccess: string
   messageUnableOpenCanvasFile: string
 }
 
@@ -13,8 +15,14 @@ export interface CanvasEmbedTargetOptions {
   lastActiveProtyle?: IProtyle | null
 }
 
+export interface CanvasEmbedTargetLocation {
+  docId: string
+  previousBlockId?: string
+}
+
 export interface RunCanvasEmbedCommandOptions extends CanvasEmbedTargetOptions {
   canvasPath?: string | null
+  mode?: "preview" | "link"
   debugLog: (message: string, payload: Record<string, unknown>) => void
   getFileText: (path: string) => Promise<string>
   getWorkspaceDir: () => Promise<string | undefined>
@@ -22,7 +30,13 @@ export interface RunCanvasEmbedCommandOptions extends CanvasEmbedTargetOptions {
     canvasPath: string
     canvasRaw: string
     parentBlockId: string
-  }) => Promise<string | undefined>
+    previousBlockId?: string
+  }) => Promise<string | undefined | null>
+  insertCanvasLink?: (options: {
+    canvasPath: string
+    parentBlockId: string
+    previousBlockId?: string
+  }) => Promise<string | undefined | null>
   messages: CanvasEmbedCommandMessages
   showMessage: (message: string, timeout?: number, type?: string) => void
 }
@@ -44,7 +58,7 @@ export async function normalizeCanvasEmbedPath(
   }
 
   try {
-    const workspaceDir = await getWorkspaceDir()
+    const workspaceDir = await getWorkspaceDir?.()
     if (!workspaceDir) {
       return canvasPath
     }
@@ -99,21 +113,63 @@ export function resolveCanvasEmbedTargetDocumentId(options: CanvasEmbedTargetOpt
   return docRoot?.getAttribute("data-node-id") || ""
 }
 
+export function resolveCanvasEmbedTargetLocation(options: CanvasEmbedTargetOptions): CanvasEmbedTargetLocation {
+  let previousBlockId: string | undefined
+
+  if (typeof window !== "undefined" && typeof document !== "undefined") {
+    const selection = window.getSelection?.()
+    if (selection && selection.rangeCount > 0) {
+      const anchorNode = selection.anchorNode
+      const element = anchorNode instanceof Element ? anchorNode : anchorNode?.parentElement
+      const block = element?.closest<HTMLElement>(".protyle-wysiwyg [data-node-id]")
+      if (block && block.getAttribute("data-type") !== "NodeDocument") {
+        previousBlockId = block.getAttribute("data-node-id") || undefined
+      }
+    }
+
+    if (!previousBlockId) {
+      const activeBlock = document.activeElement?.closest<HTMLElement>(".protyle-wysiwyg [data-node-id]")
+      if (activeBlock && activeBlock.getAttribute("data-type") !== "NodeDocument") {
+        previousBlockId = activeBlock.getAttribute("data-node-id") || undefined
+      }
+    }
+
+    if (!previousBlockId) {
+      const selectedBlock = document.querySelector<HTMLElement>(".protyle-wysiwyg .protyle-wysiwyg--select[data-node-id]")
+      if (selectedBlock && selectedBlock.getAttribute("data-type") !== "NodeDocument") {
+        previousBlockId = selectedBlock.getAttribute("data-node-id") || undefined
+      }
+    }
+  }
+
+  if (!previousBlockId) {
+    const cmdBlockId = options.commandProtyle?.block?.id
+    const cmdRootId = options.commandProtyle?.block?.rootID
+    if (cmdBlockId && cmdBlockId !== cmdRootId) {
+      previousBlockId = cmdBlockId
+    } else {
+      const lastBlockId = options.lastActiveProtyle?.block?.id
+      const lastRootId = options.lastActiveProtyle?.block?.rootID
+      if (lastBlockId && lastBlockId !== lastRootId) {
+        previousBlockId = lastBlockId
+      }
+    }
+  }
+
+  const docId = resolveCanvasEmbedTargetDocumentId(options)
+  return { docId, previousBlockId }
+}
+
 export async function runCanvasEmbedCommand(options: RunCanvasEmbedCommandOptions): Promise<string | undefined> {
   const canvasPath = await normalizeCanvasEmbedPath(options.canvasPath, options.getWorkspaceDir)
   if (!canvasPath) {
     return undefined
   }
 
-  try {
-    const rawStr = await options.getFileText(canvasPath)
-    if (!rawStr) {
-      options.debugLog("unable to read canvas file", { canvasPath })
-      options.showMessage(options.messages.messageUnableOpenCanvasFile, 4000, "error")
-      return undefined
-    }
+  const mode = options.mode ?? "preview"
 
-    const docId = resolveCanvasEmbedTargetDocumentId(options)
+  try {
+    const { docId, previousBlockId } = resolveCanvasEmbedTargetLocation(options)
     if (!docId) {
       options.debugLog("no target document found", {
         activeElement: document.activeElement?.className,
@@ -128,10 +184,34 @@ export async function runCanvasEmbedCommand(options: RunCanvasEmbedCommandOption
       return undefined
     }
 
+    if (mode === "link") {
+      if (options.insertCanvasLink) {
+        const blockId = await options.insertCanvasLink({
+          canvasPath,
+          parentBlockId: docId,
+          previousBlockId,
+        })
+        if (blockId) {
+          options.showMessage(options.messages.insertCanvasLinkSuccess, 3000)
+          return blockId
+        }
+      }
+      options.showMessage(options.messages.insertCanvasLinkFailed, 4000, "error")
+      return undefined
+    }
+
+    const rawStr = await options.getFileText(canvasPath)
+    if (!rawStr) {
+      options.debugLog("unable to read canvas file", { canvasPath })
+      options.showMessage(options.messages.messageUnableOpenCanvasFile, 4000, "error")
+      return undefined
+    }
+
     const blockId = await options.insertCanvasEmbed({
       canvasPath,
       canvasRaw: rawStr,
       parentBlockId: docId,
+      previousBlockId,
     })
     if (blockId) {
       options.showMessage(options.messages.insertCanvasEmbedSuccess, 3000)
@@ -140,8 +220,12 @@ export async function runCanvasEmbedCommand(options: RunCanvasEmbedCommandOption
 
     options.showMessage(options.messages.insertCanvasEmbedFailed, 4000, "error")
   } catch (error) {
-    options.debugLog("insert failed", { canvasPath, error })
-    options.showMessage(options.messages.insertCanvasEmbedFailed, 4000, "error")
+    options.debugLog("insert failed", { canvasPath, error, mode })
+    if (mode === "link") {
+      options.showMessage(options.messages.insertCanvasLinkFailed, 4000, "error")
+    } else {
+      options.showMessage(options.messages.insertCanvasEmbedFailed, 4000, "error")
+    }
   }
 
   return undefined

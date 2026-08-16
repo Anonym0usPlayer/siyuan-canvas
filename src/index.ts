@@ -47,7 +47,7 @@ import {
   unmountCanvasDockApp,
 } from "@/main"
 import { setCanvasEmbedDebugEnabled, startCanvasEmbedObserver, stopCanvasEmbedObserver } from "@/canvas/canvas-embed-observer"
-import { insertCanvasEmbed } from "@/canvas/canvas-embed-insert"
+import { insertCanvasEmbed, insertCanvasLink } from "@/canvas/canvas-embed-insert"
 import { getFileText } from "@/api"
 import { runCanvasEmbedCommand } from "@/canvas/canvas-embed-command"
 
@@ -316,19 +316,22 @@ export default class SiyuanCanvasPlugin extends Plugin {
   }
 
   private async insertCanvasEmbedFromCommand(protyle?: IProtyle): Promise<void> {
-    const path = await openCanvasFilePickerDialog({
+    const pickerResult = await openCanvasFilePickerDialog({
       cancelLabel: this.t("dialogCancel"),
       confirmLabel: this.t("dialogConfirm"),
+      insertLinkSwitchLabel: this.t("canvasFilePickerInsertLink"),
       noResultsLabel: this.t("canvasFilePickerNoResults"),
       searchPlaceholder: this.t("canvasFilePickerSearchPlaceholder"),
       title: this.t("insertCanvasEmbedPrompt"),
       defaultDirectory: this.canvasData.settings.defaultCanvasDirectory,
     })
-    if (!path) {
+    if (!pickerResult) {
       return
     }
+    const { path, mode } = pickerResult
     const blockId = await runCanvasEmbedCommand({
       canvasPath: path,
+      mode,
       commandProtyle: protyle,
       debugLog: (message, payload) => this.debugInsertCanvasEmbed(message, payload),
       getAllEditor: () => getAllEditor?.() ?? [],
@@ -338,11 +341,14 @@ export default class SiyuanCanvasPlugin extends Plugin {
         return resp?.data?.conf?.system?.workspaceDir
       },
       insertCanvasEmbed,
+      insertCanvasLink,
       lastActiveProtyle: this.lastActiveProtyle,
       messages: {
         insertCanvasEmbedFailed: this.t("insertCanvasEmbedFailed"),
         insertCanvasEmbedNoDocument: this.t("insertCanvasEmbedNoDocument"),
         insertCanvasEmbedSuccess: this.t("insertCanvasEmbedSuccess"),
+        insertCanvasLinkFailed: this.t("insertCanvasLinkFailed"),
+        insertCanvasLinkSuccess: this.t("insertCanvasLinkSuccess"),
         messageUnableOpenCanvasFile: this.t("messageUnableOpenCanvasFile"),
       },
       showMessage,

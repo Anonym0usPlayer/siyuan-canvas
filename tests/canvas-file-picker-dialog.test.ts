@@ -46,6 +46,7 @@ const defaultOptions = {
   searchPlaceholder: "搜索 Canvas 文件名…",
   title: "选择 Canvas 文件",
   defaultDirectory: "/data/storage/siyuan-canvas",
+  insertLinkSwitchLabel: "插入链接",
 }
 
 function getInput(): HTMLInputElement {
@@ -66,6 +67,10 @@ function getConfirmButton(): HTMLButtonElement {
 
 function getCancelButton(): HTMLButtonElement {
   return document.querySelector("[data-canvas-file-picker-cancel]") as HTMLButtonElement
+}
+
+function getModeSwitch(): HTMLInputElement {
+  return document.querySelector("[data-canvas-file-picker-mode-switch]") as HTMLInputElement
 }
 
 describe("openCanvasFilePickerDialog", () => {
@@ -184,7 +189,10 @@ describe("openCanvasFilePickerDialog", () => {
     })
 
     getConfirmButton().click()
-    expect(await promise).toBe("/data/storage/siyuan-canvas/roadmap.canvas")
+    expect(await promise).toEqual({
+      path: "/data/storage/siyuan-canvas/roadmap.canvas",
+      mode: "preview",
+    })
   })
 
   it("confirms with selected file path on item click", async () => {
@@ -199,7 +207,10 @@ describe("openCanvasFilePickerDialog", () => {
     })
 
     getListItems()[1].click()
-    expect(await promise).toBe("/data/storage/siyuan-canvas/notes.canvas")
+    expect(await promise).toEqual({
+      path: "/data/storage/siyuan-canvas/notes.canvas",
+      mode: "preview",
+    })
   })
 
   it("uses typed text as path when no files match and confirm is clicked", async () => {
@@ -215,7 +226,10 @@ describe("openCanvasFilePickerDialog", () => {
     input.dispatchEvent(new Event("input", { bubbles: true }))
 
     getConfirmButton().click()
-    expect(await promise).toBe("/custom/path/manual.canvas")
+    expect(await promise).toEqual({
+      path: "/custom/path/manual.canvas",
+      mode: "preview",
+    })
   })
 
   it("navigates with ArrowDown and ArrowUp keys", async () => {
@@ -270,7 +284,55 @@ describe("openCanvasFilePickerDialog", () => {
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }))
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }))
 
-    expect(await promise).toBe("/data/storage/siyuan-canvas/b.canvas")
+    expect(await promise).toEqual({
+      path: "/data/storage/siyuan-canvas/b.canvas",
+      mode: "preview",
+    })
+  })
+
+  it("returns mode 'link' when the mode switch is checked", async () => {
+    fetchSyncPost.mockResolvedValueOnce([
+      { isDir: false, name: "demo.canvas", updated: 1000 },
+    ])
+
+    const promise = openCanvasFilePickerDialog(defaultOptions)
+    await vi.waitFor(() => {
+      expect(getListItems()).toHaveLength(1)
+    })
+
+    const modeSwitch = getModeSwitch()
+    expect(modeSwitch).toBeTruthy()
+    expect(modeSwitch.checked).toBe(false)
+
+    modeSwitch.checked = true
+    modeSwitch.dispatchEvent(new Event("change", { bubbles: true }))
+
+    getConfirmButton().click()
+    expect(await promise).toEqual({
+      path: "/data/storage/siyuan-canvas/demo.canvas",
+      mode: "link",
+    })
+  })
+
+  it("returns mode 'link' on item click when mode switch is checked", async () => {
+    fetchSyncPost.mockResolvedValueOnce([
+      { isDir: false, name: "item1.canvas", updated: 1000 },
+      { isDir: false, name: "item2.canvas", updated: 2000 },
+    ])
+
+    const promise = openCanvasFilePickerDialog(defaultOptions)
+    await vi.waitFor(() => {
+      expect(getListItems()).toHaveLength(2)
+    })
+
+    const modeSwitch = getModeSwitch()
+    modeSwitch.checked = true
+
+    getListItems()[1].click()
+    expect(await promise).toEqual({
+      path: "/data/storage/siyuan-canvas/item2.canvas",
+      mode: "link",
+    })
   })
 
   it("cancels with Escape key", async () => {
@@ -316,7 +378,10 @@ describe("openCanvasFilePickerDialog", () => {
     input.dispatchEvent(new Event("input", { bubbles: true }))
 
     getConfirmButton().click()
-    expect(await promise).toBe("/fallback/path.canvas")
+    expect(await promise).toEqual({
+      path: "/fallback/path.canvas",
+      mode: "preview",
+    })
   })
 
   it("highlights item on mousemove", async () => {
