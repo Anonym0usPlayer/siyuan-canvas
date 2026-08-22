@@ -126,7 +126,6 @@
   .inspector__toolbar-button,
   .inspector__pin-btn {
     background: transparent;
-    border-color: transparent;
   }
 
   .inspector__toolbar-button:hover,
@@ -139,8 +138,6 @@
   }
 
   .inspector__section {
-    border: 0;
-    border-radius: 0;
     background: transparent;
     box-shadow: none;
   }
