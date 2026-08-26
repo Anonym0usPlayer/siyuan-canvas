@@ -864,11 +864,11 @@ describe('canvas editor gesture handlers', () => {
 
       // fromNode's right handle is dragged to x=600, y=200.
       // So new node should align left side to x=600, center y to 200.
-      // W=320, H=180.
+      // W=150, H=50.
       // newNode.x = 600
-      // newNode.y = 200 - 180/2 = 110
+      // newNode.y = 200 - 50/2 = 175
       expect(newNode!.x).toBe(600)
-      expect(newNode!.y).toBe(110)
+      expect(newNode!.y).toBe(175)
 
       expect(state.document.edges).toHaveLength(1)
       const edge = state.document.edges[0]
