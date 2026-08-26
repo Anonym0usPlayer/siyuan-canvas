@@ -92,7 +92,7 @@
   background: transparent;
 }
 
-/* dock 内检查器与主题面板保持一致：去除灰色卡片化，扁平化 + 思源原生悬停色 */
+/* dock 内检查器与主题面板保持一致：页签/工具栏扁平化 + 思源原生悬停色；分区卡片保留共享渐变以与"选区"选项卡一致 */
 .layout__dockl .canvas-shell.inspector,
 .layout__dockr .canvas-shell.inspector,
 .layout__dockt .canvas-shell.inspector,
@@ -135,11 +135,6 @@
 
   .inspector__toolbar-button--active {
     background: var(--canvas-accent-soft);
-  }
-
-  .inspector__section {
-    background: transparent;
-    box-shadow: none;
   }
 
   .inspector__section-toggle {
